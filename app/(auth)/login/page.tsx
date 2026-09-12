@@ -317,7 +317,7 @@ export default function LoginPage() {
                   <button 
                     type="submit" 
                     disabled={signInLoading}
-                    className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl font-medium text-sm text-white bg-brand-800 hover:bg-brand-700 active:bg-brand-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-800 transition-all shadow-sm cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl font-medium text-sm text-white bg-[#0F3F2E] hover:bg-forest-800 active:bg-forest-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0F3F2E] transition-all shadow-sm cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
                   >
                     <span>{signInLoading ? "Signing in..." : "Sign in"}</span>
                     {signInLoading && <Loader2 className="animate-spin ml-2 h-4 w-4 text-white opacity-75" />}
@@ -386,7 +386,7 @@ export default function LoginPage() {
                   <button 
                     type="submit" 
                     disabled={forgotLoading}
-                    className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl font-medium text-sm text-white bg-brand-800 hover:bg-brand-700 active:bg-brand-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-800 transition-all shadow-sm cursor-pointer mt-2 disabled:opacity-55 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl font-medium text-sm text-white bg-[#0F3F2E] hover:bg-forest-800 active:bg-forest-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0F3F2E] transition-all shadow-sm cursor-pointer mt-2 disabled:opacity-55 disabled:cursor-not-allowed"
                   >
                     <span>{forgotLoading ? "Sending link..." : "Send reset link"}</span>
                     {forgotLoading && <Loader2 className="animate-spin ml-2 h-4 w-4 text-white opacity-75" />}
@@ -404,7 +404,7 @@ export default function LoginPage() {
                     </p>
                   </div>
                   
-                  <button type="button" onClick={() => { setView("signin"); setForgotSuccess(false); setForgotEmail(""); }} className="w-full py-2.5 px-4 rounded-xl font-medium text-sm text-brand-800 bg-white border border-brand-200 hover:bg-brand-50 transition-all text-center block">
+                  <button type="button" onClick={() => { setView("signin"); setForgotSuccess(false); setForgotEmail(""); }} className="w-full py-2.5 px-4 rounded-xl font-medium text-sm text-[#0F3F2E] bg-white border border-forest-800/20 hover:bg-mint transition-all text-center block">
                     Return to sign in
                   </button>
                 </div>

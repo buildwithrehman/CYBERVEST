@@ -1,0 +1,112 @@
+{
+  "model_version": "v1.0",
+  "algorithm": "LogisticRegression",
+  "dataset_version": "Synthetic V2",
+  "feature_schema": [
+    "asset_type",
+    "criticality",
+    "internet_exposed",
+    "vuln_count",
+    "cvss_max",
+    "known_exploited_count",
+    "recent_event_count_30d",
+    "prior_incident_count"
+  ],
+  "preprocessing_version": "v1.0",
+  "training_date": "2026-09-09T16:19:27.670387Z",
+  "random_seed": 42,
+  "hyperparameters": {
+    "C": 1.0,
+    "class_weight": null,
+    "dual": false,
+    "fit_intercept": true,
+    "intercept_scaling": 1,
+    "l1_ratio": 0.0,
+    "max_iter": 1000,
+    "n_jobs": null,
+    "penalty": "deprecated",
+    "random_state": 42,
+    "solver": "lbfgs",
+    "tol": 0.0001,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "validation_metrics": {
+    "roc_auc": 0.7183434142271801,
+    "pr_auc": 0.5268170209124434,
+    "precision": 0.4380679100908656,
+    "recall": 0.7697478991596639,
+    "f1": 0.558366351722036,
+    "brier_score": 0.19047821873510343,
+    "confusion_matrix": [
+      [
+        1323,
+        1175
+      ],
+      [
+        274,
+        916
+      ]
+    ],
+    "calibration": {
+      "prob_true": [
+        0.05232558139534884,
+        0.13876651982378854,
+        0.26,
+        0.3574561403508772,
+        0.4418604651162791,
+        0.6023391812865497,
+        0.6096774193548387
+      ],
+      "prob_pred": [
+        0.09497782010248565,
+        0.11706132030132195,
+        0.238974695241883,
+        0.36571926830040613,
+        0.4183996712771006,
+        0.5830462599284378,
+        0.6233948960431511
+      ]
+    }
+  },
+  "test_metrics": {
+    "roc_auc": 0.7343918483210681,
+    "pr_auc": 0.5737068060758987,
+    "precision": 0.47746331236897277,
+    "recall": 0.7479474548440066,
+    "f1": 0.582853486884197,
+    "brier_score": 0.18659910506449337,
+    "confusion_matrix": [
+      [
+        1473,
+        997
+      ],
+      [
+        307,
+        911
+      ]
+    ],
+    "calibration": {
+      "prob_true": [
+        0.12790697674418605,
+        0.10951327433628319,
+        0.26420454545454547,
+        0.3687707641196013,
+        0.4164305949008499,
+        0.628482972136223,
+        0.6930091185410334
+      ],
+      "prob_pred": [
+        0.09510233649892841,
+        0.11659810774753741,
+        0.23910086234261077,
+        0.3659388020319035,
+        0.41863592075852096,
+        0.5832596117875994,
+        0.6232309530016167
+      ]
+    }
+  },
+  "threshold": 0.3,
+  "target_definition": "15-day forward incident probability"
+}

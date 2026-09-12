@@ -1,0 +1,104 @@
+import pytest
+import numpy as np
+from pydantic import ValidationError
+from risk_engine.fair.models import FAIRScenarioInput, PERTDistribution, SusceptibilityDistribution
+from risk_engine.fair.distributions import sample_pert
+from risk_engine.fair.calculator import calculate_fair
+from risk_engine.fair.monte_carlo import run_monte_carlo
+
+def get_base_scenario():
+    return FAIRScenarioInput(
+        scenario_id="123",
+        scenario_name="Test",
+        tef=PERTDistribution(min_val=1.0, likely_val=5.0, max_val=10.0),
+        susceptibility=SusceptibilityDistribution(min_val=0.1, likely_val=0.5, max_val=0.9),
+        productivity_loss=PERTDistribution(min_val=1000, likely_val=5000, max_val=10000),
+        response_cost=PERTDistribution(min_val=0, likely_val=0, max_val=0),
+        regulatory_loss=PERTDistribution(min_val=0, likely_val=0, max_val=0),
+        reputation_loss=PERTDistribution(min_val=0, likely_val=0, max_val=0),
+        simulation_count=10000,
+        seed=42
+    )
+
+def test_1_valid_pert_bounds():
+    samples = sample_pert(10, 20, 30, size=1000)
+    assert np.all(samples >= 10)
+    assert np.all(samples <= 30)
+
+def test_2_invalid_pert_bounds():
+    with pytest.raises(ValidationError):
+        PERTDistribution(min_val=30, likely_val=20, max_val=10)
+
+def test_3_susceptibility_bounds():
+    s = SusceptibilityDistribution(min_val=0.1, likely_val=0.5, max_val=0.9)
+    assert s.min_val >= 0 and s.max_val <= 1
+    with pytest.raises(ValidationError):
+        SusceptibilityDistribution(min_val=0.1, likely_val=1.5, max_val=2.0)
+
+def test_4_lef_relationship():
+    scen = get_base_scenario()
+    res = calculate_fair(scen)
+    # Means are approximately E[TEF]*E[Susceptibility] since they are independent
+    expected_lef = res.tef_mean * res.susceptibility_mean
+    assert np.isclose(res.lef_mean, expected_lef, rtol=0.05)
+
+def test_5_loss_components_sum():
+    scen = get_base_scenario()
+    res = calculate_fair(scen)
+    assert np.isclose(res.primary_loss_mean + res.secondary_loss_mean, res.total_loss_mean)
+
+def test_6_percentile_ordering():
+    scen = get_base_scenario()
+    res = calculate_fair(scen)
+    assert res.p10 <= res.p50 <= res.p90
+
+def test_7_eal_is_mean():
+    # EAL should be the mean of annual loss distribution
+    scen = get_base_scenario()
+    res = run_monte_carlo(scen.tef, scen.susceptibility, [scen.productivity_loss], scen.simulation_count, scen.seed)
+    mean_annual_loss = np.mean(res['annual_loss'])
+    fair_res = calculate_fair(scen)
+    assert np.isclose(mean_annual_loss, fair_res.eal, rtol=0.01)
+
+def test_8_increasing_tef_increases_eal():
+    s1 = get_base_scenario()
+    s2 = get_base_scenario()
+    s2.tef = PERTDistribution(min_val=20.0, likely_val=50.0, max_val=100.0)
+    
+    r1 = calculate_fair(s1)
+    r2 = calculate_fair(s2)
+    assert r2.eal > r1.eal
+
+def test_9_increasing_susceptibility_increases_eal():
+    s1 = get_base_scenario()
+    s2 = get_base_scenario()
+    s2.susceptibility = SusceptibilityDistribution(min_val=0.8, likely_val=0.9, max_val=0.99)
+    
+    r1 = calculate_fair(s1)
+    r2 = calculate_fair(s2)
+    assert r2.eal > r1.eal
+
+def test_10_increasing_loss_increases_eal():
+    s1 = get_base_scenario()
+    s2 = get_base_scenario()
+    s2.productivity_loss = PERTDistribution(min_val=100000, likely_val=500000, max_val=1000000)
+    
+    r1 = calculate_fair(s1)
+    r2 = calculate_fair(s2)
+    assert r2.eal > r1.eal
+
+def test_12_deterministic_seed():
+    s1 = get_base_scenario()
+    s2 = get_base_scenario()
+    r1 = calculate_fair(s1)
+    r2 = calculate_fair(s2)
+    assert r1.eal == r2.eal
+    assert r1.p90 == r2.p90
+
+def test_13_zero_loss_years():
+    # Using Compound Poisson, if LEF is very low, many years should have 0 loss.
+    scen = get_base_scenario()
+    scen.tef = PERTDistribution(min_val=0.01, likely_val=0.05, max_val=0.1)
+    res = run_monte_carlo(scen.tef, scen.susceptibility, [scen.productivity_loss], scen.simulation_count, scen.seed)
+    zero_years = np.sum(res['annual_loss'] == 0)
+    assert zero_years > (scen.simulation_count * 0.5) # At least 50% of years should have 0 loss

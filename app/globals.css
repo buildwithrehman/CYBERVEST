@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 105 16% 96%; /* #F9FAF8 */
+    --foreground: 215 28% 17%; /* #111827 */
+  }
+
+  body {
+    @apply bg-[#F9FAF8] text-[#111827] antialiased selection:bg-mint selection:text-forest;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

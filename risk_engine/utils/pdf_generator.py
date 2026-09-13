@@ -127,3 +127,68 @@ def generate_framework_evidence_pdf(organization_id: str, controls: list, findin
     doc.build(elements)
     
     return buffer.getvalue()
+
+def generate_executive_risk_pdf(organization_id: str, data: dict) -> bytes:
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], textColor=colors.HexColor('#0F3F2E'), fontSize=20, spaceAfter=10)
+    h3_style = ParagraphStyle('H3Style', parent=styles['Heading3'], textColor=colors.HexColor('#0F3F2E'), fontSize=12, spaceAfter=10, spaceBefore=20)
+    normal_style = styles['Normal']
+    
+    elements = []
+    elements.append(Paragraph("CYBERVEST Executive Risk Brief", title_style))
+    elements.append(Paragraph(f"<b>Organization:</b> {organization_id}", normal_style))
+    elements.append(Paragraph(f"<b>Generated:</b> {datetime.datetime.now(datetime.timezone.utc).isoformat()}", normal_style))
+    elements.append(Spacer(1, 20))
+    
+    # 1. FINANCIAL EXPOSURE
+    elements.append(Paragraph("1. FINANCIAL EXPOSURE (FAIR Baseline)", h3_style))
+    elements.append(Paragraph(f"<b>Expected Annual Loss (EAL):</b> {data.get('eal', 'N/A')}", normal_style))
+    elements.append(Paragraph(f"<b>P90 Tail Exposure:</b> {data.get('p90', 'N/A')}", normal_style))
+    elements.append(Spacer(1, 10))
+    
+    # Risk Drivers
+    elements.append(Paragraph("<b>Primary Risk Drivers:</b>", normal_style))
+    drivers = data.get("risk_drivers", {})
+    for k, v in drivers.items():
+        elements.append(Paragraph(f"- {k}: {v}", normal_style))
+        
+    elements.append(Spacer(1, 20))
+    
+    # 2. TOP RISKS
+    elements.append(Paragraph("2. TOP CYBER RISKS LEDGER", h3_style))
+    top_risks = data.get("top_risks", [])
+    if top_risks:
+        for r in top_risks:
+            elements.append(Paragraph(f"- {r}", normal_style))
+    else:
+        elements.append(Paragraph("No top risks identified.", normal_style))
+    
+    elements.append(Spacer(1, 20))
+    
+    # 3. OPTIMIZATION
+    elements.append(Paragraph("3. RECOMMENDED INVESTMENTS & OPTIMIZATION", h3_style))
+    opt = data.get("optimization", {})
+    if opt:
+        elements.append(Paragraph(f"<b>Baseline EAL:</b> {opt.get('baseline_eal', 'N/A')}", normal_style))
+        elements.append(Paragraph(f"<b>Optimized EAL:</b> {opt.get('optimized_eal', 'N/A')}", normal_style))
+        elements.append(Paragraph(f"<b>Total Investment:</b> {opt.get('investment', 'N/A')}", normal_style))
+        elements.append(Paragraph(f"<b>Estimated ROSI:</b> {opt.get('rosi', 'N/A')}", normal_style))
+        elements.append(Spacer(1, 10))
+        elements.append(Paragraph("<b>Selected Controls:</b>", normal_style))
+        for c in opt.get("controls", []):
+            elements.append(Paragraph(f"- {c}", normal_style))
+    else:
+        elements.append(Paragraph("No optimization data available.", normal_style))
+        
+    elements.append(Spacer(1, 30))
+    
+    # 4. ASSUMPTIONS
+    elements.append(Paragraph("4. ASSUMPTIONS & CONFIDENCE NOTES", h3_style))
+    elements.append(Paragraph("Data presented is based on parametric modeling and Monte Carlo simulations (10,000 runs) of the specified telemetry.", normal_style))
+    elements.append(Paragraph("Confidence level of FAIR inputs is based on industry heuristics and local telemetry overrides.", normal_style))
+    
+    doc.build(elements)
+    return buffer.getvalue()

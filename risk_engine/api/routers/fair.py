@@ -5,6 +5,13 @@ from ...auth.models import AuthenticatedUser
 from ...fair.models import FAIRScenarioInput
 from ...fair.calculator import calculate_fair
 from ...services.audit import log_audit_event
+import os
+from supabase import create_client
+def get_supabase_client():
+    url = os.environ["SUPABASE_URL"]
+    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    return create_client(url, key)
+
 
 router = APIRouter()
 
@@ -22,6 +29,31 @@ async def run_fair_scenario(
         
     result = await run_in_threadpool(calculate_fair, request)
     
+    client = get_supabase_client()
+    
+    # Legitimately map or create the scenario for this organization
+    if request.scenario_id == "dash_baseline":
+        res_scene = client.table("fair_scenarios").select("id").eq("organization_id", user.organization_id).eq("name", "Annual Baseline Exposure").execute()
+        if res_scene.data:
+            request.scenario_id = res_scene.data[0]["id"]
+            request.scenario_name = "Annual Baseline Exposure"
+        else:
+            import uuid
+            new_id = str(uuid.uuid4())
+            client.table("fair_scenarios").insert({
+                "id": new_id,
+                "organization_id": user.organization_id,
+                "name": "Annual Baseline Exposure"
+            }).execute()
+            request.scenario_id = new_id
+            request.scenario_name = "Annual Baseline Exposure"
+    else:
+        # Validate caller's scenario_id belongs to their org
+        res_check = client.table("fair_scenarios").select("id").eq("id", request.scenario_id).eq("organization_id", user.organization_id).execute()
+        if not res_check.data:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="Scenario not found or access denied.")
+
     # Audit logging
     await run_in_threadpool(
         log_audit_event,
@@ -32,5 +64,53 @@ async def run_fair_scenario(
         resource_id=request.scenario_id,
         new_value={"eal": float(result.eal), "p50": float(result.p50)}
     )
+
+    client.table("fair_results").insert({
+        "scenario_id": request.scenario_id,
+        "tef": float(result.tef_mean),
+        "susceptibility": float(result.susceptibility_mean),
+        "lef": float(result.lef_mean),
+        "primary_loss": float(result.primary_loss_mean),
+        "secondary_loss": float(result.secondary_loss_mean),
+        "total_loss": float(result.total_loss_mean),
+        "p10": float(result.p10),
+        "p50": float(result.p50),
+        "p90": float(result.p90),
+        "eal": float(result.eal)
+    }).execute()
     
     return result.model_dump()
+
+@router.get("/latest")
+async def get_latest_fair_result(user: AuthenticatedUser = Depends(require_read_access())):
+    client = get_supabase_client()
+    
+    # Find all legitimate scenarios for the organization
+    scenarios_res = client.table("fair_scenarios").select("id, name").eq("organization_id", user.organization_id).execute()
+    if not scenarios_res.data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="No FAIR results found")
+        
+    scenario_ids = [s["id"] for s in scenarios_res.data]
+    scenario_map = {s["id"]: s["name"] for s in scenarios_res.data}
+    
+    res = client.table("fair_results").select("*").in_("scenario_id", scenario_ids).order("created_at", desc=True).limit(1).execute()
+    if not res.data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="No FAIR results found")
+    
+    db_row = res.data[0]
+    return {
+        "scenario_id": db_row.get("scenario_id"),
+        "scenario_name": scenario_map.get(db_row.get("scenario_id"), "Unknown Scenario"),
+        "tef_mean": db_row.get("tef", 0),
+        "susceptibility_mean": db_row.get("susceptibility", 0),
+        "lef_mean": db_row.get("lef", 0),
+        "primary_loss_mean": db_row.get("primary_loss", 0),
+        "secondary_loss_mean": db_row.get("secondary_loss", 0),
+        "total_loss_mean": db_row.get("total_loss", 0),
+        "p10": db_row.get("p10", 0),
+        "p50": db_row.get("p50", 0),
+        "p90": db_row.get("p90", 0),
+        "eal": db_row.get("eal", 0),
+    }

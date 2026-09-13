@@ -53,7 +53,25 @@ async def generate_report(
         )
         
     # Unsupported or missing data scopes
-    elif request.report_type in ["EXECUTIVE_RISK", "CISO_RISK", "INVESTMENT", "SCENARIO"]:
+    
+    elif request.report_type == "EXECUTIVE_RISK":
+        from ...utils.pdf_generator import generate_executive_risk_pdf
+        
+        # Get parameters passed from frontend
+        params = request.parameters or {}
+        pdf_bytes = generate_executive_risk_pdf(
+            organization_id=org_id,
+            data=params
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": "attachment; filename=CYBERVEST_Executive_Brief.pdf"
+            }
+        )
+
+    elif request.report_type in ["CISO_RISK", "INVESTMENT", "SCENARIO"]:
         raise HTTPException(
             status_code=422,
             detail="An organization-wide financial risk dataset is not available in the current demonstration scope."
@@ -95,7 +113,25 @@ async def generate_pdf(
             }
         )
         
-    elif request.report_type in ["EXECUTIVE_RISK", "CISO_RISK", "INVESTMENT", "SCENARIO"]:
+    
+    elif request.report_type == "EXECUTIVE_RISK":
+        from ...utils.pdf_generator import generate_executive_risk_pdf
+        
+        # Get parameters passed from frontend
+        params = request.parameters or {}
+        pdf_bytes = generate_executive_risk_pdf(
+            organization_id=org_id,
+            data=params
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": "attachment; filename=CYBERVEST_Executive_Brief.pdf"
+            }
+        )
+
+    elif request.report_type in ["CISO_RISK", "INVESTMENT", "SCENARIO"]:
         raise HTTPException(
             status_code=422,
             detail="An organization-wide financial risk dataset is not available in the current demonstration scope."

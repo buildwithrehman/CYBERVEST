@@ -2,9 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api/client";
-import { FAIRResultOutput, FAIRScenarioInput } from "@/lib/types/api";
+import { supabase } from "@/lib/auth/supabase";
+import { FAIRResultOutput, FAIRScenarioInput, OptimizationResponse, RiskAsset } from "@/lib/types/api";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/States";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
   ShieldAlert,
   AlertTriangle,
@@ -18,7 +20,9 @@ import {
   ArrowRight,
   Compass,
   FlaskConical,
-  Scale
+  Scale,
+  Download,
+  AlertCircle
 } from "lucide-react";
 
 const defaultFairScenario: FAIRScenarioInput = {
@@ -44,24 +48,86 @@ function formatINR(val: number) {
 }
 
 export default function DashboardPage() {
+  const [reportError, setReportError] = useState<string | null>(null);
+  
   const { data: fairData, isLoading: fairLoading, error: fairError } = useQuery({
-    queryKey: ["fair_baseline"],
-    queryFn: () =>
-      fetchApi<FAIRResultOutput>("/api/fair/run", {
+    queryKey: ["fair_latest"],
+    queryFn: () => fetchApi<FAIRResultOutput>("/api/fair/latest"),
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+
+  const { data: optResult, isLoading: optLoading } = useQuery({
+    queryKey: ["opt_latest"],
+    queryFn: () => fetchApi<OptimizationResponse>("/api/optimization/latest"),
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+
+  const { data: assetsData, isLoading: assetsLoading, error: assetsError } = useQuery({
+    queryKey: ["assets"],
+    queryFn: () => fetchApi<any[]>("/api/assets/"),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: riskExplorerData, isLoading: riskLoading, error: riskError } = useQuery({
+    queryKey: ["riskExplorer"],
+    queryFn: () => fetchApi<RiskAsset[]>("/api/risk-explorer/"),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const topRisks = riskExplorerData 
+    ? [...riskExplorerData].sort((a,b) => (b.vuln_critical_count - a.vuln_critical_count) || (b.incident_count - a.incident_count) || ((b.epss_max||0) - (a.epss_max||0))).slice(0, 5)
+    : [];
+
+  const handleExport = async () => {
+    try {
+      setReportError(null);
+      const params = {
+        eal: fairData ? formatINR(fairData.eal) : "N/A",
+        p90: fairData ? formatINR(fairData.p90) : "N/A",
+        risk_drivers: fairData ? {
+            "Threat Event Frequency (TEF)": `${fairData.tef_mean} events/yr`,
+            "Vulnerability & Susceptibility": `${(fairData.susceptibility_mean * 100).toFixed(1)}%`,
+            "Primary Loss Magnitude": formatINR(fairData.primary_loss_mean),
+            "Secondary Loss Magnitude": formatINR(fairData.secondary_loss_mean)
+        } : {},
+        top_risks: topRisks.map(r => `${r.name} (${r.vuln_critical_count} Crit Vulns, ${r.incident_count} Incidents)`),
+        optimization: optResult ? {
+            baseline_eal: formatINR(optResult.baseline_eal),
+            optimized_eal: formatINR(optResult.optimized_eal),
+            investment: formatINR(optResult.total_investment),
+            rosi: `${(optResult.rosi * 100).toFixed(0)}%`,
+            controls: optResult.selected_mitigations.map(m => m.name)
+        } : null
+      };
+
+            const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch("/api/reports/pdf", {
         method: "POST",
-        body: JSON.stringify(defaultFairScenario),
-      }),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": session?.access_token ? `Bearer ${session.access_token}` : ""
+        },
+        body: JSON.stringify({ report_type: "EXECUTIVE_RISK", parameters: params })
+      });
 
-  const { data: assetsData, isLoading: assetsLoading } = useQuery({
-    queryKey: ["assets_count"],
-    queryFn: () => fetchApi<any>("/api/assets/"),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
 
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "CYBERVEST_Executive_Brief.pdf";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setReportError("Failed to generate PDF. Check backend logs.");
+    }
+  };
 
   // Derived metrics for UI
   const eal = fairData?.eal || 0;
@@ -81,7 +147,7 @@ export default function DashboardPage() {
           <div className="flex items-center px-2.5 py-1.5 rounded-lg bg-white border border-border text-sm font-medium shadow-sm tabular-nums">
             <span className="text-slate-500 mr-1 text-xs">Currency:</span> [INR ₹]
           </div>
-          <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0F3F2E] hover:bg-[#14533D] text-white text-sm transition-colors shadow-sm font-medium">
+          <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0F3F2E] hover:bg-[#14533D] text-white text-[14px] transition-colors shadow-sm font-medium">
             Export Executive Brief
           </button>
         </div>
@@ -119,13 +185,13 @@ export default function DashboardPage() {
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-3xl font-bold tracking-tight text-slate-900 tabular-nums">{fairLoading ? <span className="text-lg text-slate-400 font-medium">Computing...</span> : fairError ? <span className="text-lg text-red-500 font-medium">Error</span> : p90 ? formatINR(p90) : "N/A"}</span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">90th percentile annual loss</p>
+            <p className="text-[12px] text-slate-500 mt-0.5">90th percentile annual loss</p>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 text-xs font-semibold">
               Severe Capital Stress
             </span>
-            <span className="text-xs text-slate-500">10% of modeled outcomes exceed this level.</span>
+            <span className="text-[12px] text-slate-500">10% of modeled outcomes exceed this level.</span>
           </div>
         </div>
 
@@ -141,7 +207,7 @@ export default function DashboardPage() {
                 {assetsLoading ? "..." : (assetsData?.length || 0)}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">Discovered critical systems</p>
+            <p className="text-[12px] text-slate-500 mt-0.5">Discovered critical systems</p>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
              <Link href="/assets" className="text-xs text-[#0F3F2E] font-semibold hover:underline">View Asset Telemetry →</Link>
@@ -171,7 +237,7 @@ export default function DashboardPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-[#0F3F2E]"></span>
-                <h3 className="text-lg font-semibold text-slate-900">Annual Cyber Loss Distribution</h3>
+                <h3 className="text-[22px] font-semibold text-slate-900">Annual Cyber Loss Distribution</h3>
                 <span className="inline-block px-2 py-0.5 rounded bg-[#E8F3EE] text-[#0F3F2E] border border-[#D1E7DD] text-xs font-medium">
                   FAIR Engine
                 </span>
@@ -232,12 +298,12 @@ export default function DashboardPage() {
           
           <div className="mt-4 pt-3 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 -mx-6 -mb-6 p-4 rounded-b-2xl">
             <div className="flex flex-col">
-              <span className="text-xs text-slate-500">10th Percentile</span>
+              <span className="text-[12px] text-slate-500">10th Percentile</span>
               <span className="text-lg font-bold text-slate-900 tabular-nums">{formatINR(p10)}</span>
               <span className="text-[10px] text-slate-500">Favorable operations</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-xs text-slate-500">Median (P50)</span>
+              <span className="text-[12px] text-slate-500">Median (P50)</span>
               <span className="text-lg font-bold text-[#2e6951] tabular-nums">{formatINR(p50)}</span>
               <span className="text-[10px] text-slate-500">Baseline probability</span>
             </div>
@@ -260,7 +326,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Activity className="w-5 h-5 text-[#2e6951]" />
-                <h3 className="text-lg font-semibold text-slate-900">Primary Risk Drivers</h3>
+                <h3 className="text-[22px] font-semibold text-slate-900">Primary Risk Drivers</h3>
               </div>
             </div>
             <p className="text-sm text-slate-500 mt-2 mb-5">
@@ -270,7 +336,7 @@ export default function DashboardPage() {
             {fairLoading ? (
               <div className="flex-1 flex flex-col items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#2e6951] mb-3"></div>
-                <p className="text-sm text-slate-500">Decomposing drivers...</p>
+                <p className="text-sm text-slate-500">Loading drivers...</p>
               </div>
             ) : fairError ? (
               <div className="flex-1 py-6"><ErrorState error={fairError as Error} /></div>
@@ -329,37 +395,115 @@ export default function DashboardPage() {
 
       {/* MAIN GRID ROW 2 */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-6 bg-slate-50 border border-border border-dashed rounded-2xl p-6 shadow-sm flex flex-col justify-center items-center text-center">
+        <div className="lg:col-span-6 bg-slate-50 border border-border border-dashed rounded-2xl p-6 shadow-sm flex flex-col justify-center items-center text-center h-48">
           <TrendingDown className="w-8 h-8 text-slate-300 mb-2" />
-          <h3 className="text-lg font-semibold text-slate-900">Risk Exposure Trend</h3>
-          <p className="text-sm text-slate-500 mt-2">12-Month Telemetry is not natively supported by the current API backend.</p>
+          <h3 className="text-[22px] font-semibold text-slate-900">Risk Exposure Trend</h3>
+          <p className="text-[14px] text-slate-500 mt-2 max-w-sm">Historical exposure trend unavailable — historical FAIR calculations are not yet tracked in the current schema.</p>
+          <Link href="/fair" className="mt-4 px-4 py-2 bg-white border border-border rounded-lg text-[14px] font-medium text-slate-700 hover:bg-slate-100">
+            Run FAIR Assessment
+          </Link>
         </div>
         
-        <div className="lg:col-span-6 bg-slate-50 border border-border border-dashed rounded-2xl p-6 shadow-sm flex flex-col justify-center items-center text-center">
+        <div className="lg:col-span-6 bg-slate-50 border border-border border-dashed rounded-2xl p-6 shadow-sm flex flex-col justify-center items-center text-center h-48">
           <PieChart className="w-8 h-8 text-slate-300 mb-2" />
-          <h3 className="text-lg font-semibold text-slate-900">Exposure Distribution by Unit</h3>
-          <p className="text-sm text-slate-500 mt-2">Business Unit aggregation is not natively supported by the current API backend.</p>
+          <h3 className="text-[22px] font-semibold text-slate-900">Exposure by Business Unit</h3>
+          <p className="text-[14px] text-slate-500 mt-2 max-w-sm">Business-unit-level financial exposure cannot currently be derived from the existing FAIR engine dataset.</p>
         </div>
       </section>
 
       {/* MAIN GRID ROW 3 */}
       <section className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-7 bg-slate-50 border border-border border-dashed rounded-2xl p-6 shadow-sm flex flex-col justify-center items-center text-center">
-          <List className="w-8 h-8 text-slate-300 mb-2" />
-          <h3 className="text-lg font-semibold text-slate-900">Top Cyber Risks Ledger</h3>
-          <p className="text-sm text-slate-500 mt-2">Detailed risk asset breakdown is deferred to the future Risk Explorer endpoint.</p>
-          <Link href="/risk-explorer" className="mt-4 px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Go to Risk Explorer
-          </Link>
+        <div className="xl:col-span-7 bg-white border border-border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <List className="w-5 h-5 text-slate-700" />
+                <h3 className="text-[22px] font-semibold text-slate-900">Top Cyber Risks Ledger</h3>
+              </div>
+              <Link href="/risk-explorer" className="text-[13px] font-medium text-[#2e6951] hover:underline">
+                View Risk Explorer →
+              </Link>
+            </div>
+            <p className="text-[14px] text-slate-500 mt-2 mb-4">
+              Highest-priority real assets. Ranked by Critical Vulnerabilities, Incident Count, then EPSS.
+            </p>
+            
+            {riskLoading ? (
+              <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0F3F2E]"></div></div>
+            ) : riskError ? (
+              <div className="py-8"><ErrorState error={riskError as Error} /></div>
+            ) : topRisks.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {topRisks.map((asset) => (
+                  <Link key={asset.id} href={`/assets/${asset.id}`} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50 hover:border-slate-300 transition-colors group">
+                    <div className="flex flex-col">
+                      <span className="text-[15px] font-semibold text-slate-900 group-hover:text-[#2e6951] transition-colors">{asset.name}</span>
+                      <span className="text-[12px] text-slate-500">{asset.asset_type || "Unknown Type"}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-right">
+                      <div className="flex flex-col">
+                        <span className="text-[12px] font-semibold text-red-600">{asset.vuln_critical_count} Crit Vulns</span>
+                        <span className="text-[11px] text-slate-500">Max EPSS: {(asset.epss_max || 0).toFixed(2)}</span>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-[#2e6951]" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8"><EmptyState title="No Risk Data" description="No assets with telemetry found." /></div>
+            )}
+          </div>
         </div>
         
-        <div className="xl:col-span-5 bg-slate-50 border border-border border-dashed rounded-2xl p-6 shadow-sm flex flex-col justify-center items-center text-center">
-          <ThumbsUp className="w-8 h-8 text-slate-300 mb-2" />
-          <h3 className="text-lg font-semibold text-slate-900">Recommended Investments</h3>
-          <p className="text-sm text-slate-500 mt-2">Requires running Optimizer endpoint with explicit mitigations and budget.</p>
-          <Link href="/optimizer" className="mt-4 px-4 py-2 bg-[#0F3F2E] rounded-lg text-sm font-medium text-white hover:bg-[#14533D]">
-            Open Investment Optimizer
-          </Link>
+        <div className="xl:col-span-5 bg-white border border-border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <ThumbsUp className="w-5 h-5 text-slate-700" />
+                <h3 className="text-[22px] font-semibold text-slate-900">Recommended Investments</h3>
+              </div>
+            </div>
+            
+            {optResult ? (
+              <>
+                <p className="text-[14px] text-slate-500 mt-2 mb-4">
+                  Latest verified recommendations from the OR-Tools optimization engine.
+                </p>
+                <div className="flex flex-col gap-3">
+                  {optResult.selected_mitigations.slice(0, 4).map((mit, idx) => (
+                    <div key={idx} className="p-3 rounded-lg border border-slate-100 bg-[#F8FAFC]">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[14px] font-semibold text-slate-900">{mit.name}</span>
+                        <span className="text-[13px] font-medium text-[#2e6951]">{formatINR(mit.cost)}</span>
+                      </div>
+                      <div className="text-[12px] text-slate-500 flex justify-between">
+                        <span>EAL Reduction:</span>
+                        <span className="font-semibold text-slate-700">{formatINR(mit.modeled_eal_reduction)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {optResult.selected_mitigations.length > 4 && (
+                    <div className="text-[12px] text-center text-slate-500 italic mt-2">
+                      + {optResult.selected_mitigations.length - 4} more selected controls
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 flex justify-between items-center bg-slate-50 p-3 rounded border border-border">
+                  <span className="text-[13px] font-medium text-slate-700">Estimated ROSI:</span>
+                  <span className="text-[15px] font-bold text-slate-900">{(optResult.rosi * 100).toFixed(0)}%</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Scale className="w-8 h-8 text-slate-300 mb-2" />
+                <p className="text-[14px] text-slate-500 mb-4 max-w-[200px]">Run the Investment Optimizer to see recommended capital allocations.</p>
+                <Link href="/optimizer" className="px-4 py-2 bg-[#0F3F2E] rounded-lg text-[14px] font-medium text-white hover:bg-[#14533D]">
+                  Open Optimizer
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -370,20 +514,20 @@ export default function DashboardPage() {
             <Activity className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-slate-900">Ready to model changes to the capital plan?</div>
-            <div className="text-xs text-slate-500">Simulate controls impact or configure regulatory compliance frameworks.</div>
+            <div className="text-[14px] font-semibold text-slate-900">Ready to model changes to the capital plan?</div>
+            <div className="text-[12px] text-slate-500">Simulate controls impact or configure regulatory compliance frameworks.</div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/risk-explorer" className="px-3.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-900 text-sm transition-colors border border-border flex items-center gap-1.5 font-medium">
+          <Link href="/risk-explorer" className="px-3.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-900 text-[14px] transition-colors border border-border flex items-center gap-1.5 font-medium">
             <Compass className="w-4 h-4" />
             <span>Explore Risk Details</span>
           </Link>
-          <Link href="/scenarios" className="px-3.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-900 text-sm transition-colors border border-border flex items-center gap-1.5 font-medium">
+          <Link href="/scenarios" className="px-3.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-900 text-[14px] transition-colors border border-border flex items-center gap-1.5 font-medium">
             <FlaskConical className="w-4 h-4" />
             <span>Run What-if Scenario</span>
           </Link>
-          <Link href="/optimizer" className="px-3.5 py-1.5 rounded-lg bg-[#0F3F2E] hover:bg-[#14533D] text-white text-sm transition-colors flex items-center gap-1.5 font-medium shadow-sm">
+          <Link href="/optimizer" className="px-3.5 py-1.5 rounded-lg bg-[#0F3F2E] hover:bg-[#14533D] text-white text-[14px] transition-colors flex items-center gap-1.5 font-medium shadow-sm">
             <Scale className="w-4 h-4" />
             <span>Optimize Capital Allocation</span>
           </Link>

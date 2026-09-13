@@ -64,7 +64,7 @@ def test_8_increasing_tef_increases_eal():
     s1 = get_base_scenario()
     s2 = get_base_scenario()
     s2.tef = PERTDistribution(min_val=20.0, likely_val=50.0, max_val=100.0)
-    
+
     r1 = calculate_fair(s1)
     r2 = calculate_fair(s2)
     assert r2.eal > r1.eal
@@ -73,7 +73,7 @@ def test_9_increasing_susceptibility_increases_eal():
     s1 = get_base_scenario()
     s2 = get_base_scenario()
     s2.susceptibility = SusceptibilityDistribution(min_val=0.8, likely_val=0.9, max_val=0.99)
-    
+
     r1 = calculate_fair(s1)
     r2 = calculate_fair(s2)
     assert r2.eal > r1.eal
@@ -82,7 +82,7 @@ def test_10_increasing_loss_increases_eal():
     s1 = get_base_scenario()
     s2 = get_base_scenario()
     s2.productivity_loss = PERTDistribution(min_val=100000, likely_val=500000, max_val=1000000)
-    
+
     r1 = calculate_fair(s1)
     r2 = calculate_fair(s2)
     assert r2.eal > r1.eal
@@ -120,7 +120,7 @@ def test_api_endpoint_structure():
     )
 
     client = TestClient(app)
-    
+
     # We use a very fast scenario to ensure tests complete quickly
     fast_scenario = {
         "scenario_id": "fast_test",
@@ -139,13 +139,48 @@ def test_api_endpoint_structure():
     response = client.post("/api/fair/run", json=fast_scenario)
     assert response.status_code == 200, response.text
     data = response.json()
-    
+
     # Validate structure
     assert "eal" in data
     assert "p10" in data
     assert "p50" in data
     assert "p90" in data
     assert data["scenario_id"] == "fast_test"
-    
+
     # Clear overrides
     app.dependency_overrides = {}
+
+def test_fair_memory_bounded_execution():
+    """
+    Regression test to ensure the DemoFin 10,000-simulation scenario
+    completes without violating Render's 512 MB memory limit.
+    """
+    import tracemalloc
+    from risk_engine.fair.models import FAIRScenarioInput
+    from risk_engine.fair.calculator import calculate_fair
+
+    payload = {
+      "scenario_id": "baseline",
+      "scenario_name": "Annual Baseline Exposure",
+      "organization_id": "00000000-0000-0000-0000-000000000001",
+      "tef": {"min_val": 100, "likely_val": 14200, "max_val": 20000},
+      "susceptibility": {"min_val": 0.2, "likely_val": 0.44, "max_val": 0.8},
+      "productivity_loss": {"min_val": 500000, "likely_val": 2000000, "max_val": 5000000},
+      "response_cost": {"min_val": 100000, "likely_val": 500000, "max_val": 1500000},
+      "regulatory_loss": {"min_val": 50000, "likely_val": 150000, "max_val": 2000000},
+      "reputation_loss": {"min_val": 200000, "likely_val": 800000, "max_val": 3000000},
+      "simulation_count": 10000
+    }
+    req = FAIRScenarioInput(**payload)
+
+    tracemalloc.start()
+    res = calculate_fair(req)
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    # Assert Peak memory is under 300 MB (safely below 512 MB)
+    assert peak < 300 * 1024 * 1024, f"Peak memory was {peak / 10**6} MB, exceeds 300 MB budget"
+
+    # Assert mathematical invariants
+    assert res.p10 <= res.p50 <= res.p90
+    assert res.eal > 0

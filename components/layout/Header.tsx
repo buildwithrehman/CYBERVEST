@@ -1,6 +1,7 @@
 import { MobileNavigation } from "./MobileNavigation";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Search, Bell } from "lucide-react";
+import { UserMenu } from "./UserMenu";
 
 export function Header() {
   return (
@@ -21,9 +22,7 @@ export function Header() {
           <span className="absolute top-2 right-2 w-2 h-2 bg-semantic-threat-text rounded-full border border-white" />
         </button>
         
-        <div className="w-8 h-8 rounded-full bg-forest text-white flex items-center justify-center text-sm font-semibold ml-2">
-          JD
-        </div>
+        <UserMenu />
       </div>
     </header>
   );

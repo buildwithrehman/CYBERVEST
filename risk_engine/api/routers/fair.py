@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.concurrency import run_in_threadpool
 from ...auth.dependencies import require_read_access, require_write_access, get_current_user
 from ...auth.models import AuthenticatedUser
 from ...fair.models import FAIRScenarioInput
@@ -19,10 +20,11 @@ async def run_fair_scenario(
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Cross-tenant access forbidden.")
         
-    result = calculate_fair(request)
+    result = await run_in_threadpool(calculate_fair, request)
     
     # Audit logging
-    log_audit_event(
+    await run_in_threadpool(
+        log_audit_event,
         organization_id=user.organization_id,
         user_id=user.user_id,
         action="RUN_FAIR_SCENARIO",

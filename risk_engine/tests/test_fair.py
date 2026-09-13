@@ -102,3 +102,50 @@ def test_13_zero_loss_years():
     res = run_monte_carlo(scen.tef, scen.susceptibility, [scen.productivity_loss], scen.simulation_count, scen.seed)
     zero_years = np.sum(res['annual_loss'] == 0)
     assert zero_years > (scen.simulation_count * 0.5) # At least 50% of years should have 0 loss
+
+def test_api_endpoint_structure():
+    # Test the API endpoint directly to ensure run_in_threadpool doesn't alter response
+    from fastapi.testclient import TestClient
+    from risk_engine.main import app
+    from risk_engine.auth.dependencies import get_current_user
+    from risk_engine.auth.models import AuthenticatedUser
+    from risk_engine.auth.models import Role
+
+    # Mock authentication
+    app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser(
+        user_id="11111111-1111-1111-1111-111111111111",
+        email="test@example.com",
+        organization_id="11111111-1111-1111-1111-111111111111",
+        role=Role.ADMIN
+    )
+
+    client = TestClient(app)
+    
+    # We use a very fast scenario to ensure tests complete quickly
+    fast_scenario = {
+        "scenario_id": "fast_test",
+        "scenario_name": "Fast API Test",
+        "tef": {"min_val": 1.0, "likely_val": 5.0, "max_val": 10.0},
+        "susceptibility": {"min_val": 0.1, "likely_val": 0.5, "max_val": 0.9},
+        "productivity_loss": {"min_val": 1000, "likely_val": 5000, "max_val": 10000},
+        "response_cost": {"min_val": 0, "likely_val": 0, "max_val": 0},
+        "regulatory_loss": {"min_val": 0, "likely_val": 0, "max_val": 0},
+        "reputation_loss": {"min_val": 0, "likely_val": 0, "max_val": 0},
+        "simulation_count": 1000,
+        "seed": 42,
+        "organization_id": "11111111-1111-1111-1111-111111111111"
+    }
+
+    response = client.post("/api/fair/run", json=fast_scenario)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    
+    # Validate structure
+    assert "eal" in data
+    assert "p10" in data
+    assert "p50" in data
+    assert "p90" in data
+    assert data["scenario_id"] == "fast_test"
+    
+    # Clear overrides
+    app.dependency_overrides = {}

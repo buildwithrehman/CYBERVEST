@@ -21,7 +21,7 @@ def get_supabase_client(token: str) -> Client:
     client.auth.set_session(access_token=token, refresh_token="")
     return client
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> AuthenticatedUser:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> AuthenticatedUser:
     token = credentials.credentials
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication credentials")

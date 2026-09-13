@@ -128,3 +128,48 @@ def test_cross_tenant_optimization():
     response = client.post("/api/optimization/run", json=payload)
     assert response.status_code == 403
     assert "Cross-tenant access forbidden" in response.json()["detail"]
+
+import inspect
+
+def test_get_current_user_is_sync():
+    # Ensure it's not an async def function to enable threadpool execution
+    from risk_engine.auth.dependencies import get_current_user
+    assert not inspect.iscoroutinefunction(get_current_user), "get_current_user must be sync (def) for threadpool execution"
+
+def test_get_current_user_parses_auth(monkeypatch):
+    from risk_engine.auth.dependencies import get_current_user
+    from fastapi.security import HTTPAuthorizationCredentials
+    from risk_engine.auth.models import Role
+
+    class MockUser:
+        id = "user_123"
+        email = "test@example.com"
+
+    class MockUserResponse:
+        user = MockUser()
+
+    class MockTableResponse:
+        data = [{"organization_id": "org_123", "role": Role.ADMIN}]
+
+    class MockTable:
+        def select(self, *args, **kwargs): return self
+        def eq(self, *args, **kwargs): return self
+        def execute(self): return MockTableResponse()
+
+    class MockAuth:
+        def get_user(self): return MockUserResponse()
+
+    class MockClient:
+        auth = MockAuth()
+        def table(self, name): return MockTable()
+
+    import risk_engine.auth.dependencies as deps
+    monkeypatch.setattr(deps, "get_supabase_client", lambda t: MockClient())
+
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid_token")
+    user = get_current_user(creds)
+
+    assert user.user_id == "user_123"
+    assert user.email == "test@example.com"
+    assert user.organization_id == "org_123"
+    assert user.role == Role.ADMIN

@@ -34,17 +34,24 @@ async def get_risk_explorer_data(user: AuthenticatedUser = Depends(require_read_
         
     asset_ids = [a["id"] for a in assets]
     
-    # 2. Fetch vulnerabilities
-    vulns_res = client.table("vulnerabilities").select("asset_id, severity, epss_score").in_("asset_id", asset_ids).execute()
-    vulns = vulns_res.data
+    vulns = []
+    events = []
     
-    # 3. Fetch security events
-    # We can't do date filtering easily in basic python comprehension if it's too much data, but let's query
-    events_res = client.table("security_events").select("asset_id").in_("asset_id", asset_ids).execute()
-    events = events_res.data
+    # 2 & 3. Fetch vulnerabilities and security events using bounded chunking
+    # URL limit is typically 8KB, 100 UUIDs = ~3.7KB
+    chunk_size = 100
+    for i in range(0, len(asset_ids), chunk_size):
+        chunk = asset_ids[i:i + chunk_size]
+        
+        v_res = client.table("vulnerabilities").select("asset_id, severity, epss_score").in_("asset_id", chunk).execute()
+        vulns.extend(v_res.data)
+        
+        e_res = client.table("security_events").select("asset_id").in_("asset_id", chunk).execute()
+        events.extend(e_res.data)
     
-    # 4. Fetch incidents
-    incidents_res = client.table("incidents").select("asset_id").eq("organization_id", user.organization_id).in_("asset_id", asset_ids).execute()
+    # 4. Fetch incidents using organization-scoped query (Option A)
+    # Since incidents has organization_id, we do NOT need .in_("asset_id")
+    incidents_res = client.table("incidents").select("asset_id").eq("organization_id", user.organization_id).execute()
     incidents = incidents_res.data
     
     # Aggregate

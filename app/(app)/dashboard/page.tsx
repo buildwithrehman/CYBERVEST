@@ -62,16 +62,12 @@ export default function DashboardPage() {
     refetchOnWindowFocus: false,
   });
 
-  if (fairLoading) return <LoadingState message="Running FAIR Monte Carlo simulation..." />;
-  if (fairError) return <ErrorState error={fairError as Error} />;
-  
-  if (!fairData) return <EmptyState title="No Risk Data" description="Unable to load FAIR baseline." />;
 
   // Derived metrics for UI
-  const eal = fairData.eal;
-  const p10 = fairData.p10;
-  const p50 = fairData.p50;
-  const p90 = fairData.p90;
+  const eal = fairData?.eal || 0;
+  const p10 = fairData?.p10 || 0;
+  const p50 = fairData?.p50 || 0;
+  const p90 = fairData?.p90 || 0;
 
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto w-full font-sans text-slate-900 pb-12">
@@ -104,7 +100,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-3xl font-bold tracking-tight text-white tabular-nums">{formatINR(eal)}</span>
+              <span className="text-3xl font-bold tracking-tight text-white tabular-nums">{fairLoading ? <span className="text-lg opacity-80 font-medium">Computing...</span> : fairError ? <span className="text-lg text-red-300 font-medium">Error</span> : eal ? formatINR(eal) : "N/A"}</span>
             </div>
             <p className="text-xs text-[#bcedd5] opacity-90 mt-0.5">Expected Annual Loss</p>
           </div>
@@ -121,7 +117,7 @@ export default function DashboardPage() {
               <AlertTriangle className="w-5 h-5 text-slate-400" />
             </div>
             <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-3xl font-bold tracking-tight text-slate-900 tabular-nums">{formatINR(p90)}</span>
+              <span className="text-3xl font-bold tracking-tight text-slate-900 tabular-nums">{fairLoading ? <span className="text-lg text-slate-400 font-medium">Computing...</span> : fairError ? <span className="text-lg text-red-500 font-medium">Error</span> : p90 ? formatINR(p90) : "N/A"}</span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">90th percentile annual loss</p>
           </div>
@@ -271,49 +267,62 @@ export default function DashboardPage() {
               FAIR factor decomposition identifying mathematical contributors to the modeled expected loss.
             </p>
             
-            <div className="flex flex-col gap-4">
-              <div>
-                <div className="flex justify-between items-center text-sm mb-1.5">
-                  <span className="font-medium text-slate-900">Vulnerability &amp; Susceptibility</span>
-                </div>
-                <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                  <span>Derived Mean: {(fairData.susceptibility_mean * 100).toFixed(1)}%</span>
-                </div>
+            {fairLoading ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#2e6951] mb-3"></div>
+                <p className="text-sm text-slate-500">Decomposing drivers...</p>
               </div>
-              
-              <div>
-                <div className="flex justify-between items-center text-sm mb-1.5">
-                  <span className="font-medium text-slate-900">Threat Event Frequency (TEF)</span>
-                </div>
-                <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                  <span>Derived Mean: {fairData.tef_mean.toLocaleString()} events/yr</span>
-                </div>
-              </div>
+            ) : fairError ? (
+              <div className="flex-1 py-6"><ErrorState error={fairError as Error} /></div>
+            ) : fairData ? (
+              <>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <div className="flex justify-between items-center text-sm mb-1.5">
+                      <span className="font-medium text-slate-900">Vulnerability &amp; Susceptibility</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
+                      <span>Derived Mean: {(fairData.susceptibility_mean * 100).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center text-sm mb-1.5">
+                      <span className="font-medium text-slate-900">Threat Event Frequency (TEF)</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
+                      <span>Derived Mean: {fairData.tef_mean.toLocaleString()} events/yr</span>
+                    </div>
+                  </div>
 
-              <div>
-                <div className="flex justify-between items-center text-sm mb-1.5">
-                  <span className="font-medium text-slate-900">Primary Loss Magnitude</span>
+                  <div>
+                    <div className="flex justify-between items-center text-sm mb-1.5">
+                      <span className="font-medium text-slate-900">Primary Loss Magnitude</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
+                      <span>Derived Mean: {formatINR(fairData.primary_loss_mean)}</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center text-sm mb-1.5">
+                      <span className="font-medium text-slate-900">Secondary Loss Magnitude</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
+                      <span>Derived Mean: {formatINR(fairData.secondary_loss_mean)}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                  <span>Derived Mean: {formatINR(fairData.primary_loss_mean)}</span>
+                
+                <div className="mt-6 p-3.5 rounded-xl bg-slate-50 border border-border flex items-start gap-3">
+                  <div className="text-sm text-slate-900">
+                    <span className="font-semibold text-[#0F3F2E]">Note:</span> These risk drivers are analytically derived directly from the baseline scenario parameters sent to <code className="text-xs bg-slate-200 px-1 py-0.5 rounded">/api/fair/run</code>.
+                  </div>
                 </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between items-center text-sm mb-1.5">
-                  <span className="font-medium text-slate-900">Secondary Loss Magnitude</span>
-                </div>
-                <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                  <span>Derived Mean: {formatINR(fairData.secondary_loss_mean)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-6 p-3.5 rounded-xl bg-slate-50 border border-border flex items-start gap-3">
-            <div className="text-sm text-slate-900">
-              <span className="font-semibold text-[#0F3F2E]">Note:</span> These risk drivers are analytically derived directly from the baseline scenario parameters sent to <code className="text-xs bg-slate-200 px-1 py-0.5 rounded">/api/fair/run</code>.
-            </div>
+              </>
+            ) : (
+              <div className="flex-1 py-12"><EmptyState title="No Risk Data" description="Unable to load FAIR baseline." /></div>
+            )}
           </div>
         </div>
       </section>

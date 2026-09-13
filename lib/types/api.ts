@@ -43,7 +43,7 @@ export interface ControlUpdatePayload {
 
 export interface EvidencePayload {
   organization_control_id: string;
-  title: string;
+  finding: string;
   description: string;
   storage_path: string;
   evidence_type: string;
@@ -143,16 +143,22 @@ export interface MLFeaturePayload {
 }
 
 export interface MLPredictRequest {
-  organization_id: string;
-  features: MLFeaturePayload;
+  asset_id: string;
 }
 
 export interface MLPredictResponse {
   status: string;
-  prediction: number;
-  classification?: string;
-  model_version?: string;
-  model_name?: string;
+  asset_id: string;
+  prediction: {
+    probability: number;
+    label: string;
+  };
+  features: Record<string, any>;
+  model: {
+    name: string;
+    version: string;
+    training_metrics?: Record<string, any>;
+  };
   prediction_timestamp?: string;
 }
 
@@ -246,4 +252,101 @@ export interface ReportMetadata {
 export interface ReportContent {
   controls?: ReportControl[];
   findings?: ReportFinding[];
+}
+
+export interface Asset {
+  id: string;
+  organization_id: string;
+  name: string;
+  asset_type?: string;
+  environment?: string;
+  criticality?: string;
+  internet_exposed: boolean;
+  data_sensitivity?: string;
+  owner?: string;
+  location?: string;
+  description?: string;
+  business_service_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RiskAsset {
+  id: string;
+  name: string;
+  asset_type?: string;
+  criticality?: string;
+  internet_exposed: boolean;
+  business_service_id?: string;
+  vuln_critical_count: number;
+  vuln_high_count: number;
+  epss_max?: number;
+  event_count_30d: number;
+  incident_count: number;
+}
+
+export interface Framework {
+  id: string;
+  name: string;
+  short_name: string;
+  version: string;
+  description: string;
+}
+
+export interface FrameworkControl {
+  id: string;
+  framework_id: string;
+  control_code: string;
+  title: string;
+  description: string;
+  domain: string;
+}
+
+export interface OrganizationControl {
+  id: string;
+  organization_id: string;
+  framework_control_id: string;
+  status: string;
+  owner?: string;
+  notes?: string;
+  framework_controls?: {
+    framework_id: string;
+    control_code: string;
+    title: string;
+    frameworks?: {
+      short_name: string;
+    }
+  }
+}
+
+export interface ComplianceOverview {
+  organization_id: string;
+  framework_posture: Record<string, {
+    IMPLEMENTED: number;
+    PARTIALLY_IMPLEMENTED: number;
+    GAP: number;
+    NOT_ASSESSED: number;
+  }>;
+  critical_gaps: number;
+  high_gaps: number;
+}
+
+export interface ComplianceFinding {
+  id: string;
+  organization_id: string;
+  organization_control_id?: string;
+  finding: string;
+  severity: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComplianceGap {
+  organization_control_id: string;
+  framework_id: string;
+  control_code: string;
+  title: string;
+  status: string;
+  has_gap: boolean;
 }

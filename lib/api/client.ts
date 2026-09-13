@@ -18,7 +18,9 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
     headers.set("Authorization", `Bearer ${session.access_token}`);
   }
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+
+  const response = await fetch(`${apiBaseUrl}${endpoint}`, {
     ...options,
     headers,
   });

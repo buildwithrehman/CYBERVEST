@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from .api.routers import fair, optimization, ml, assets, admin, compliance, audit, reports
+from .api.routers import fair, optimization, ml, assets, admin, compliance, audit, reports, risk_explorer
 from .auth.dependencies import get_current_user
 
 app = FastAPI(
@@ -32,6 +32,7 @@ app.include_router(fair.router, prefix="/api/fair", tags=["FAIR Risk Engine"])
 app.include_router(optimization.router, prefix="/api/optimization", tags=["Optimization Engine"])
 app.include_router(ml.router, prefix="/api/ml", tags=["ML Engine"])
 app.include_router(assets.router, prefix="/api/assets", tags=["Assets & Vulnerabilities"])
+app.include_router(risk_explorer.router, prefix="/api/risk-explorer", tags=["Risk Explorer"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Administration"])
 app.include_router(compliance.router, prefix="/api/compliance", tags=["Compliance Engine"])
 app.include_router(audit.router, prefix="/api/audit", tags=["Audit Activity"])

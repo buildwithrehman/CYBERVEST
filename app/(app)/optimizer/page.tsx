@@ -16,8 +16,10 @@ import {
   Play,
   Percent,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from "lucide-react";
+import Link from "next/link";
 
 function formatINR(val: number) {
   if (val === undefined || val === null) return "—";
@@ -39,7 +41,7 @@ const defaultFairScenario: FAIRScenarioInput = {
   response_cost: { min_val: 100000, likely_val: 500000, max_val: 1500000 },
   regulatory_loss: { min_val: 50000, likely_val: 150000, max_val: 2000000 },
   reputation_loss: { min_val: 200000, likely_val: 800000, max_val: 3000000 },
-  simulation_count: 10000
+  simulation_count: 500
 };
 
 const certifiedMitigations: Mitigation[] = [
@@ -108,12 +110,17 @@ const certifiedMitigations: Mitigation[] = [
 export default function OptimizerPage() {
   const [budget, setBudget] = useState<number>(10000000);
 
-  const mutation = useMutation({
+    const mutation = useMutation({
     mutationFn: (req: OptimizationRequest) =>
       fetchApi<OptimizationResponse>("/api/optimization/run", {
         method: "POST",
         body: JSON.stringify(req),
-      })
+      }),
+    onSuccess: (data) => {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("latest_optimization_result", JSON.stringify(data));
+      }
+    }
   });
 
   const handleOptimize = () => {
@@ -150,7 +157,7 @@ export default function OptimizerPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+                    <button 
             onClick={handleOptimize}
             disabled={mutation.isPending}
             className="px-5 py-2.5 bg-[#0F3F2E] hover:bg-[#14533D] text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
@@ -158,6 +165,12 @@ export default function OptimizerPage() {
             <Play className="w-4 h-4" />
             <span>{mutation.isPending ? "Running Engine..." : "Run Optimization"}</span>
           </button>
+          {mutation.data && (
+            <Link href="/optimizer/results" className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm">
+              <FileText className="w-4 h-4" />
+              <span>Executive Report</span>
+            </Link>
+          )}
         </div>
       </section>
 
@@ -233,7 +246,32 @@ export default function OptimizerPage() {
               </p>
             </div>
           </div>
-        </section>
+        
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 flex flex-col justify-between shadow-sm">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-sm font-medium">Risk Reduction</span>
+              <Percent className="w-5 h-5 text-slate-400" />
+            </div>
+            <div className="my-2">
+              <div className="text-3xl font-bold text-slate-900 tracking-tight">{mutation.data.percentage_risk_reduction.toFixed(2)}%</div>
+            </div>
+            <div className="pt-3 border-t border-slate-100 text-xs text-slate-500">
+              Modeled absolute: {formatINR(mutation.data.absolute_risk_reduction)}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 flex flex-col justify-between shadow-sm">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-sm font-medium">Expected ROSI</span>
+              <TrendingUp className="w-5 h-5 text-slate-400" />
+            </div>
+            <div className="my-2">
+              <div className="text-3xl font-bold text-slate-900 tracking-tight">{mutation.data.rosi.toFixed(2)}x</div>
+            </div>
+            <div className="pt-3 border-t border-slate-100 text-xs text-slate-500">
+              Return on Security Investment
+            </div>
+          </div></section>
       )}
 
       {mutation.isError && (

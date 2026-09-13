@@ -1,161 +1,108 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import React, { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api/client";
-import { MLPredictRequest, MLPredictResponse, MLFeaturePayload } from "@/lib/types/api";
-import { ErrorState } from "@/components/ui/States";
-import { 
-  Play, 
-  BrainCircuit, 
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  Server,
-  Database,
-  Monitor
-} from "lucide-react";
+import { MLPredictRequest, MLPredictResponse, Asset } from "@/lib/types/api";
+import { BrainCircuit, Server, Activity, ArrowRight, Play, AlertTriangle, ShieldCheck } from "lucide-react";
+import { LoadingState, ErrorState } from "@/components/ui/States";
 
-const DEMO_PROFILES: Record<string, MLFeaturePayload> = {
-  "profile-1": {
-    asset_type: "Workstation",
-    criticality: "Low",
-    internet_exposed: false,
-    vuln_count: 0,
-    cvss_max: 0.0,
-    known_exploited_count: 0,
-    recent_event_count_30d: 0,
-    prior_incident_count: 0
-  },
-  "profile-2": {
-    asset_type: "Server",
-    criticality: "Medium",
-    internet_exposed: true,
-    vuln_count: 5,
-    cvss_max: 7.5,
-    known_exploited_count: 0,
-    recent_event_count_30d: 50,
-    prior_incident_count: 0
-  },
-  "profile-3": {
-    asset_type: "Database",
-    criticality: "Critical",
-    internet_exposed: true,
-    vuln_count: 25,
-    cvss_max: 9.8,
-    known_exploited_count: 3,
-    recent_event_count_30d: 500,
-    prior_incident_count: 2
-  }
-};
+export default function MLPage() {
+  const [selectedAssetId, setSelectedAssetId] = useState<string>("");
 
-export default function MLRiskIntelligencePage() {
-  const [selectedProfile, setSelectedProfile] = useState<string>("profile-1");
+  const { data: assets, isLoading: assetsLoading, error: assetsError } = useQuery({
+    queryKey: ["ml_assets"],
+    queryFn: () => fetchApi<Asset[]>("/api/assets/"),
+  });
 
-  const mutation = useMutation({
-    mutationFn: (req: MLPredictRequest) =>
-      fetchApi<MLPredictResponse>("/api/ml/predict", {
+  const mutation = useMutation<MLPredictResponse, Error, MLPredictRequest>({
+    mutationFn: (req) =>
+      fetchApi("/api/ml/predict", {
         method: "POST",
         body: JSON.stringify(req),
-      })
+      }),
   });
 
   const handlePredict = () => {
-    mutation.mutate({
-      organization_id: "00000000-0000-0000-0000-000000000000",
-      features: DEMO_PROFILES[selectedProfile]
-    });
+    if (!selectedAssetId) return;
+    mutation.mutate({ asset_id: selectedAssetId });
   };
 
-  const isElevated = mutation.data?.classification === "Elevated Signal";
+  const isElevated = mutation.data?.prediction.label?.toLowerCase().includes("elevated");
+
+  if (assetsLoading) return <LoadingState message="Loading assets for ML engine..." />;
+  if (assetsError) return <ErrorState error={assetsError instanceof Error ? assetsError : new Error("Failed to load assets")} />;
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1600px] mx-auto w-full font-sans text-slate-900 pb-16 p-6">
+    <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full font-sans text-slate-900 pb-16 p-6">
       
-      {/* HEADER SECTION */}
-      <section className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      {/* PAGE HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">ML Risk Intelligence</h1>
-            <span className="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-500 border border-slate-200">
-              {mutation.data?.model_name || "incident_likelihood_v1"}
-            </span>
-          </div>
-          <p className="text-sm text-slate-500">
-            Predictive intelligence estimating 15-day forward incident likelihood based on asset evidence.
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">ML Risk Intelligence</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Certified point-in-time machine learning inference for operational telemetry.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={handlePredict}
-            disabled={mutation.isPending}
-            className="px-5 py-2.5 bg-[#0F3F2E] hover:bg-[#14533D] text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
-          >
-            <Play className="w-4 h-4" />
-            <span>{mutation.isPending ? "Running Model..." : "Run Prediction"}</span>
-          </button>
-        </div>
-      </section>
+      </div>
 
-      {mutation.isError && (
-        <ErrorState error={mutation.error as Error} />
-      )}
-
-      {/* FAIR BOUNDARY NOTICE */}
-      <section className="bg-[#EAF5EE] border border-[#0F3F2E]/20 text-[#0F3F2E] rounded-lg p-4 flex items-start gap-3 shadow-sm">
-        <Info className="w-5 h-5 text-[#0F3F2E] mt-0.5 flex-shrink-0" />
-        <div className="text-sm leading-relaxed">
-          <strong>Methodology Boundary:</strong> ML output is an intelligence signal predicting the probability of at least one incident within the next 15 days. Analysts can use it as evidence when defining FAIR assumptions; however, FAIR financial exposure (EAL, LEF, TEF) is calculated separately by the certified FAIR engine.
-        </div>
-      </section>
-
-      {/* MAIN WORKSPACE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* LEFT / TOP: PREDICTION INPUT / CONTEXT */}
+        {/* LEFT: ASSET SELECTION & FEATURES */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-2">Prediction Context</h2>
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm h-full flex flex-col">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-2">Target Asset Selection</h2>
             
-            <div className="space-y-4">
+            <div className="flex-1 space-y-5">
               <div>
-                <label className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Asset Evidence Input</label>
+                <label className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-2">Select Organization Asset</label>
                 <select 
-                  value={selectedProfile}
-                  onChange={(e) => setSelectedProfile(e.target.value)}
-                  className="mt-2 w-full text-sm border-slate-300 rounded-lg shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
+                  className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#0F3F2E] focus:outline-none"
+                  value={selectedAssetId}
+                  onChange={(e) => {
+                    setSelectedAssetId(e.target.value);
+                    mutation.reset();
+                  }}
                 >
-                  <option value="profile-1">A. Lower-Risk Context (Workstation)</option>
-                  <option value="profile-2">B. Medium-Risk Context (Server)</option>
-                  <option value="profile-3">C. Higher-Risk Context (Database)</option>
+                  <option value="" disabled>-- Select an asset --</option>
+                  {assets?.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.asset_type || "Unknown"})</option>
+                  ))}
                 </select>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-600 font-mono space-y-1">
-                <div>Asset Type: {DEMO_PROFILES[selectedProfile].asset_type}</div>
-                <div>Criticality: {DEMO_PROFILES[selectedProfile].criticality}</div>
-                <div>Internet Exposed: {DEMO_PROFILES[selectedProfile].internet_exposed ? "Yes" : "No"}</div>
-                <div>Vuln Count: {DEMO_PROFILES[selectedProfile].vuln_count}</div>
-                <div>CVSS Max: {DEMO_PROFILES[selectedProfile].cvss_max}</div>
-                <div>Exploits: {DEMO_PROFILES[selectedProfile].known_exploited_count}</div>
-              </div>
+              {mutation.data && mutation.data.features && (
+                <div>
+                  <label className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-2">Backend Extracted Features</label>
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-600 font-mono space-y-1">
+                    <div>Asset Type: {String(mutation.data.features.asset_type)}</div>
+                    <div>Criticality: {String(mutation.data.features.criticality)}</div>
+                    <div>Internet Exposed: {String(mutation.data.features.internet_exposed)}</div>
+                    <div>Vuln Count: {String(mutation.data.features.vuln_count)}</div>
+                    <div>CVSS Max: {String(mutation.data.features.cvss_max)}</div>
+                    <div>Known Exploited: {String(mutation.data.features.known_exploited_count)}</div>
+                    <div>Recent Events (30d): {String(mutation.data.features.recent_event_count_30d)}</div>
+                    <div>Prior Incidents: {String(mutation.data.features.prior_incident_count)}</div>
+                  </div>
+                </div>
+              )}
               
               <div>
                 <label className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Prediction Window</label>
                 <div className="mt-1 text-sm text-slate-900 font-medium">Next 15 Days (Rolling)</div>
               </div>
 
-              <div>
-                <label className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Evaluation Context</label>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                    Demonstration Prediction
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  Assessing synthetic temporal data context defined by the API contract.
-                </p>
-              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 mt-4">
+              <button 
+                onClick={handlePredict}
+                disabled={mutation.isPending || !selectedAssetId}
+                className="w-full h-10 rounded-lg bg-[#0F3F2E] text-white hover:bg-[#14533D] text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              >
+                {mutation.isPending ? "Running Inference..." : "Run Server Inference"}
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -165,16 +112,27 @@ export default function MLRiskIntelligencePage() {
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm h-full flex flex-col">
             <h2 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-2">Model Result</h2>
             
-            {mutation.data ? (
+            {mutation.isPending ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-6 text-center text-slate-400">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0F3F2E] mb-4"></div>
+                <span className="text-sm">Calculating point-in-time likelihood...</span>
+              </div>
+            ) : mutation.error ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-6 text-center text-red-500">
+                <AlertTriangle className="w-8 h-8 mb-3 opacity-80" />
+                <span className="text-sm font-medium">Inference Failed</span>
+                <span className="text-xs text-slate-500 mt-2">{mutation.error.message}</span>
+              </div>
+            ) : mutation.data ? (
               <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
                 <BrainCircuit className="w-12 h-12 text-[#0F3F2E] mb-4 opacity-80" />
-                <div className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Modeled Incident Likelihood</div>
+                <div className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Modeled Incident Likelihood (15d)</div>
                 <div className="text-6xl font-bold tracking-tight text-[#0F3F2E]">
-                  {(mutation.data.prediction * 100).toFixed(2)}%
+                  {(mutation.data.prediction.probability * 100).toFixed(2)}%
                 </div>
-                {mutation.data.model_version && (
+                {mutation.data.model?.version && (
                   <div className="mt-4 text-xs text-slate-400">
-                    Model Version: {mutation.data.model_version}
+                    Model Version: {mutation.data.model.version}
                   </div>
                 )}
                 {mutation.data.prediction_timestamp && (
@@ -187,7 +145,7 @@ export default function MLRiskIntelligencePage() {
               <div className="flex-1 flex flex-col items-center justify-center py-6 text-center text-slate-400">
                 <Play className="w-8 h-8 mb-3 opacity-50" />
                 <span className="text-sm font-medium">Run prediction to view result</span>
-                <span className="text-xs text-slate-400 mt-2">Invokes actual server-side inference</span>
+                <span className="text-xs text-slate-400 mt-2">Invokes actual server-side inference on asset telemetry</span>
               </div>
             )}
           </div>
@@ -196,26 +154,32 @@ export default function MLRiskIntelligencePage() {
         {/* RIGHT: RISK SIGNAL / EVIDENCE */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm h-full">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-2">Risk Signal</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-2">Risk Signal & Evidence</h2>
             
             {mutation.data ? (
               <div className="space-y-4">
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex gap-3">
-                  <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${isElevated ? 'text-amber-500' : 'text-slate-400'}`} />
+                <div className={`p-4 rounded-xl border flex gap-3 ${isElevated ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'}`}>
+                  {isElevated ? (
+                    <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-500" />
+                  ) : (
+                    <ShieldCheck className="w-5 h-5 flex-shrink-0 text-green-500" />
+                  )}
                   <div>
-                    <div className="text-sm font-bold text-slate-900">
-                      {mutation.data.classification || "Intelligence Signal"}
+                    <div className={`text-sm font-bold ${isElevated ? 'text-amber-900' : 'text-green-900'}`}>
+                      {mutation.data.prediction.label || "Intelligence Signal"}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    <div className="text-xs text-slate-600 mt-1 leading-relaxed">
                       Classification threshold is determined by certified backend metadata.
                     </div>
                   </div>
                 </div>
 
                 <div className="pt-2">
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Model Context</div>
-                  <div className="text-sm text-slate-600 italic">
-                    Feature contributions and individual explanations are not exposed by the current API contract. Signal is derived strictly from the certified organizational baseline telemetry.
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Model Evidence</div>
+                  <div className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded p-3">
+                    <p className="mb-2"><strong>ML to FAIR Boundary:</strong></p>
+                    <p className="mb-2">The calculated probability (p15) is an intermediate intelligence signal. It does not natively represent total financial exposure without translating to a FAIR Loss Event Frequency (LEF) distribution.</p>
+                    <p className="italic text-xs">Direct model feature coefficient explanations are disabled to prevent spurious causal interpretations of correlations.</p>
                   </div>
                 </div>
               </div>
@@ -231,14 +195,14 @@ export default function MLRiskIntelligencePage() {
       {/* LOWER: MODEL VALIDATION / METHODOLOGY */}
       <section className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">Model Validation — Synthetic Dataset</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Model Evaluation — Offline Test Set</h2>
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
             Certified Artifact: incident_likelihood_v1
           </span>
         </div>
         
         <p className="text-sm text-slate-600 mb-6">
-          <strong>Disclosure:</strong> Metrics shown below are from the certified synthetic temporal evaluation (11,064 snapshots, chronological split). They should <em>not</em> be interpreted as production, real-world, or enterprise predictive accuracy.
+          <strong>Disclosure:</strong> Metrics shown below are from the certified synthetic offline evaluation on the test set. They serve as a baseline model-quality reference, not real-time production performance.
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

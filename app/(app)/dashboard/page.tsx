@@ -133,11 +133,23 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* CARD 3: Critical Assets at Risk */}
-        <div className="bg-slate-50 border border-border border-dashed rounded-2xl p-5 shadow-sm flex flex-col justify-center items-center text-center">
-          <Server className="w-6 h-6 text-slate-300 mb-2" />
-          <span className="text-sm text-slate-500 font-medium">Critical Assets at Risk</span>
-          <p className="text-xs text-slate-400 mt-1">Asset telemetry temporarily unavailable</p>
+                {/* CARD 3: Assets Tracked */}
+        <div className="bg-white border border-border rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-slate-500 font-medium">Assets Tracked</span>
+              <Server className="w-5 h-5 text-slate-400" />
+            </div>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-3xl font-bold tracking-tight text-slate-900 tabular-nums">
+                {assetsLoading ? "..." : (assetsData?.length || 0)}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">Discovered critical systems</p>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+             <Link href="/assets" className="text-xs text-[#0F3F2E] font-semibold hover:underline">View Asset Telemetry →</Link>
+          </div>
         </div>
 
         {/* CARD 4: Risk Reduction Opportunity (Unsupported) */}

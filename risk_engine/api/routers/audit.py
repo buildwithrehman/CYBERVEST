@@ -51,7 +51,7 @@ async def list_audit_logs(
     
     # Start query
     query = client.table("audit_logs").select(
-        "id, timestamp, user_id, action, resource_type, resource_id, new_value, old_value, profiles(email, full_name)",
+        "id, timestamp, user_id, action, resource_type, resource_id, new_value, old_value",
         count="exact"
     )
     
@@ -77,10 +77,8 @@ async def list_audit_logs(
     records = []
     for item in response.data:
         # Safely extract profile
-        profile = item.get("profiles") or {}
-        if isinstance(profile, list) and len(profile) > 0:
-            profile = profile[0]
-            
+        profile = {}
+        
         # Sanitize details (don't expose raw potentially sensitive JSON payloads)
         # We can extract a summary or just ignore it.
         details_str = None
@@ -95,9 +93,9 @@ async def list_audit_logs(
         records.append(AuditRecord(
             id=str(item["id"]),
             timestamp=item["timestamp"],
-            actor_id=str(item["user_id"]) if item["user_id"] else "system",
-            actor_email=profile.get("email", "Unknown"),
-            actor_name=profile.get("full_name", "Unknown"),
+            actor_id=str(item["user_id"]) if item.get("user_id") else "system",
+            actor_email="Unknown",
+            actor_name="Unknown",
             action=item["action"],
             resource_type=item["resource_type"],
             resource_id=str(item["resource_id"]),

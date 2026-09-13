@@ -1,7 +1,7 @@
 import os
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 from .models import AuthenticatedUser, Role
 
 security = HTTPBearer()
@@ -16,10 +16,13 @@ def get_service_role_key() -> str:
     return os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 def get_supabase_client(token: str) -> Client:
-    # We initialize the client with anon key, but we set the auth token.
-    client = create_client(get_supabase_url(), get_supabase_anon_key())
-    client.auth.set_session(access_token=token, refresh_token="")
-    return client
+    # We initialize the client with anon key, but we set the auth token statelessly in headers.
+    # This prevents the gotrue set_session() crash when refresh_token is omitted.
+    return create_client(
+        get_supabase_url(), 
+        get_supabase_anon_key(),
+        options=ClientOptions(headers={"Authorization": f"Bearer {token}"})
+    )
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> AuthenticatedUser:
     token = credentials.credentials
@@ -28,13 +31,14 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         
     try:
         client = get_supabase_client(token)
-        # Get user from Supabase auth (verifies JWT implicitly)
-        user_response = client.auth.get_user()
+        # Get user from Supabase auth (verifies JWT statelessly)
+        user_response = client.auth.get_user(token)
         if not user_response or not user_response.user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or token expired")
     except HTTPException:
         raise
     except Exception as e:
+        print(f"DEBUG AUTH ERROR: {type(e).__name__}: {str(e)}")
         # Catch IndexError, pydantic ValidationError, auth errors, etc.
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication credentials")
         

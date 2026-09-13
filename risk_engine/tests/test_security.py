@@ -157,7 +157,7 @@ def test_get_current_user_parses_auth(monkeypatch):
         def execute(self): return MockTableResponse()
 
     class MockAuth:
-        def get_user(self): return MockUserResponse()
+        def get_user(self, jwt=None): return MockUserResponse()
 
     class MockClient:
         auth = MockAuth()
@@ -173,3 +173,76 @@ def test_get_current_user_parses_auth(monkeypatch):
     assert user.email == "test@example.com"
     assert user.organization_id == "org_123"
     assert user.role == Role.ADMIN
+
+def test_get_supabase_client_stateless(monkeypatch):
+    import risk_engine.auth.dependencies as deps
+    
+    # Mock create_client to inspect arguments
+    passed_args = []
+    passed_kwargs = {}
+    
+    def mock_create_client(*args, **kwargs):
+        passed_args.extend(args)
+        passed_kwargs.update(kwargs)
+        return "mock_client"
+        
+    monkeypatch.setattr(deps, "create_client", mock_create_client)
+    monkeypatch.setenv("SUPABASE_URL", "test_url")
+    monkeypatch.setenv("SUPABASE_KEY", "test_key")
+    
+    client = deps.get_supabase_client("my_fake_jwt")
+    
+    assert client == "mock_client"
+    assert "test_url" in passed_args
+    assert "test_key" in passed_args
+    
+    # Verify ClientOptions is used and headers are set correctly
+    options = passed_kwargs.get("options")
+    assert options is not None
+    assert options.headers["Authorization"] == "Bearer my_fake_jwt"
+
+def test_get_current_user_calls_get_user_with_token(monkeypatch):
+    from risk_engine.auth.dependencies import get_current_user
+    from fastapi.security import HTTPAuthorizationCredentials
+    from risk_engine.auth.models import Role
+    
+    class MockUser:
+        id = "user_123"
+        email = "test@example.com"
+        
+    class MockUserResponse:
+        user = MockUser()
+        
+    class MockTableResponse:
+        data = [{"organization_id": "org_123", "role": Role.ADMIN}]
+        
+    class MockTable:
+        def select(self, *args, **kwargs): return self
+        def eq(self, *args, **kwargs): return self
+        def execute(self): return MockTableResponse()
+        
+    class MockAuth:
+        def __init__(self):
+            self.passed_token = None
+        def get_user(self, jwt=None):
+            self.passed_token = jwt
+            return MockUserResponse()
+            
+    class MockClient:
+        def __init__(self):
+            self.auth = MockAuth()
+        def table(self, name): return MockTable()
+        
+    import risk_engine.auth.dependencies as deps
+    
+    # Mock out the client builder
+    mock_client_instance = MockClient()
+    monkeypatch.setattr(deps, "get_supabase_client", lambda t: mock_client_instance)
+    
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="my_valid_jwt")
+    user = get_current_user(creds)
+    
+    assert user.user_id == "user_123"
+    # Ensure token was explicitly passed to get_user
+    assert mock_client_instance.auth.passed_token == "my_valid_jwt"
+

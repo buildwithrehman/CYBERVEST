@@ -87,10 +87,10 @@ export default function DashboardPage() {
         eal: fairData ? formatINR(fairData.eal) : "N/A",
         p90: fairData ? formatINR(fairData.p90) : "N/A",
         risk_drivers: fairData ? {
-            "Threat Event Frequency (TEF)": `${fairData.tef_mean} events/yr`,
-            "Vulnerability & Susceptibility": `${(fairData.susceptibility_mean * 100).toFixed(1)}%`,
-            "Primary Loss Magnitude": formatINR(fairData.primary_loss_mean),
-            "Secondary Loss Magnitude": formatINR(fairData.secondary_loss_mean)
+            "Threat Event Frequency (TEF)": `${fairData?.tef_mean || 0} events/yr`,
+            "Vulnerability & Susceptibility": `${((fairData?.susceptibility_mean || 0) * 100).toFixed(1)}%`,
+            "Primary Loss Magnitude": formatINR(fairData?.primary_loss_mean || 0),
+            "Secondary Loss Magnitude": formatINR(fairData?.secondary_loss_mean || 0)
         } : {},
         top_risks: topRisks.map(r => `${r.name} (${r.vuln_critical_count} Crit Vulns, ${r.incident_count} Incidents)`),
         optimization: optResult ? {
@@ -348,7 +348,7 @@ export default function DashboardPage() {
                       <span className="font-medium text-slate-900">Vulnerability &amp; Susceptibility</span>
                     </div>
                     <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                      <span>Derived Mean: {(fairData.susceptibility_mean * 100).toFixed(1)}%</span>
+                      <span>Derived Mean: {((fairData?.susceptibility_mean || 0) * 100).toFixed(1)}%</span>
                     </div>
                   </div>
                   
@@ -357,7 +357,7 @@ export default function DashboardPage() {
                       <span className="font-medium text-slate-900">Threat Event Frequency (TEF)</span>
                     </div>
                     <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                      <span>Derived Mean: {fairData.tef_mean.toLocaleString()} events/yr</span>
+                      <span>Derived Mean: {(fairData?.tef_mean || 0).toLocaleString()} events/yr</span>
                     </div>
                   </div>
 
@@ -366,7 +366,7 @@ export default function DashboardPage() {
                       <span className="font-medium text-slate-900">Primary Loss Magnitude</span>
                     </div>
                     <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                      <span>Derived Mean: {formatINR(fairData.primary_loss_mean)}</span>
+                      <span>Derived Mean: {formatINR(fairData?.primary_loss_mean || 0)}</span>
                     </div>
                   </div>
                   
@@ -375,7 +375,7 @@ export default function DashboardPage() {
                       <span className="font-medium text-slate-900">Secondary Loss Magnitude</span>
                     </div>
                     <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
-                      <span>Derived Mean: {formatINR(fairData.secondary_loss_mean)}</span>
+                      <span>Derived Mean: {formatINR(fairData?.secondary_loss_mean || 0)}</span>
                     </div>
                   </div>
                 </div>

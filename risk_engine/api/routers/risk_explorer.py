@@ -15,6 +15,7 @@ class RiskAsset(BaseModel):
     criticality: Optional[str]
     internet_exposed: bool
     business_service_id: Optional[str]
+    environment: Optional[str]
     vuln_critical_count: int = 0
     vuln_high_count: int = 0
     epss_max: Optional[float] = None
@@ -26,7 +27,7 @@ async def get_risk_explorer_data(user: AuthenticatedUser = Depends(require_read_
     client = _get_db()
     
     # 1. Fetch assets
-    assets_res = client.table("assets").select("id, name, asset_type, criticality, internet_exposed, business_service_id").eq("organization_id", user.organization_id).execute()
+    assets_res = client.table("assets").select("id, name, asset_type, criticality, internet_exposed, business_service_id, environment").eq("organization_id", user.organization_id).execute()
     assets = assets_res.data
     
     if not assets:
@@ -85,6 +86,7 @@ async def get_risk_explorer_data(user: AuthenticatedUser = Depends(require_read_
             criticality=a.get("criticality"),
             internet_exposed=a.get("internet_exposed", False),
             business_service_id=a.get("business_service_id"),
+            environment=a.get("environment"),
             vuln_critical_count=vuln_map[aid]["crit"],
             vuln_high_count=vuln_map[aid]["high"],
             epss_max=vuln_map[aid]["epss"],

@@ -275,6 +275,7 @@ export interface RiskAsset {
   id: string;
   name: string;
   asset_type?: string;
+  environment?: string;
   criticality?: string;
   internet_exposed: boolean;
   business_service_id?: string;

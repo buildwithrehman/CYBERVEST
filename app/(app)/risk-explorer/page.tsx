@@ -20,6 +20,8 @@ import {
 export default function RiskExplorerPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Filter States
   const [serviceFilter, setServiceFilter] = useState("All");
@@ -108,6 +110,64 @@ export default function RiskExplorerPage() {
 
   const hasActiveFilters = searchTerm !== "" || serviceFilter !== "All" || criticalityFilter !== "All" || environmentFilter !== "All" || typeFilter !== "All";
 
+  
+  const handleExport = () => {
+    try {
+      setIsExporting(true);
+      setExportError(null);
+      
+      if (!filteredAssets || filteredAssets.length === 0) {
+        throw new Error("No data available to export");
+      }
+
+      // Prepare headers
+      const headers = [
+        "Asset Name",
+        "Asset Type",
+        "Business Service",
+        "Environment",
+        "Criticality",
+        "Internet Exposed",
+        "Critical Vulns",
+        "High Vulns",
+        "Max EPSS",
+        "Events (30d)",
+        "Incidents"
+      ];
+
+      // Prepare rows
+      const rows = filteredAssets.map(asset => [
+        `"${(asset.name || "").replace(/"/g, '""')}"`,
+        `"${(asset.asset_type || "unspecified").replace(/"/g, '""')}"`,
+        `"${(asset.business_service_id || "").replace(/"/g, '""')}"`,
+        `"${(asset.environment || "unspecified").replace(/"/g, '""')}"`,
+        `"${(asset.criticality || "unspecified").replace(/"/g, '""')}"`,
+        asset.internet_exposed ? "Yes" : "No",
+        asset.vuln_critical_count || 0,
+        asset.vuln_high_count || 0,
+        asset.epss_max ? asset.epss_max.toFixed(4) : "0",
+        asset.event_count_30d || 0,
+        asset.incident_count || 0
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Risk_Explorer_Export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setExportError(err.message || "Failed to export data");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (assetsLoading) return <LoadingState message="Loading Risk Explorer..." />;
   if (assetsError) return <ErrorState error={assetsError instanceof Error ? assetsError : new Error("Failed to load risk telemetry data")} />;
 
@@ -125,13 +185,22 @@ export default function RiskExplorerPage() {
             <SlidersHorizontal className="w-4 h-4" />
             <span>Configure Baselines</span>
           </button>
-          <button className="h-10 px-4 rounded-lg bg-[#0F3F2E] text-white hover:bg-[#14533D] text-sm font-medium flex items-center gap-2 shadow transition-colors disabled:opacity-50" disabled>
+          <button 
+            onClick={handleExport}
+            disabled={isExporting}
+            className="h-10 px-4 rounded-lg bg-[#0F3F2E] text-white hover:bg-[#14533D] text-sm font-medium flex items-center gap-2 shadow transition-colors disabled:opacity-50"
+          >
             <Download className="w-4 h-4" />
-            <span>Export Report</span>
+            <span>{isExporting ? "Exporting..." : "Export Report"}</span>
           </button>
         </div>
       </div>
 
+      {exportError && (
+        <div className="p-3 mb-4 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+          {exportError}
+        </div>
+      )}
       {/* FILTER BAR */}
       <div className="bg-white border border-border rounded-xl p-4 shadow-sm flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">

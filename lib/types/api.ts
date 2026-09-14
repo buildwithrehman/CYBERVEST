@@ -351,3 +351,43 @@ export interface ComplianceGap {
   status: string;
   has_gap: boolean;
 }
+
+export interface Vulnerability {
+  id: string;
+  cve_id?: string;
+  asset_id: string;
+  cvss_score?: number;
+  severity?: string;
+  attack_vector?: string;
+  known_exploited: boolean;
+  epss_score?: number;
+  published_at?: string;
+}
+
+export interface SecurityEvent {
+  id: string;
+  asset_id: string;
+  event_type: string;
+  severity: string;
+  source: string;
+  timestamp: string;
+  description?: string;
+}
+
+export interface Incident {
+  id: string;
+  organization_id: string;
+  asset_id: string;
+  incident_type: string;
+  severity: string;
+  detected_at: string;
+  resolved_at?: string;
+  financial_loss?: number;
+  description?: string;
+}
+
+export interface AssetTelemetryResponse {
+  vulnerabilities: Vulnerability[];
+  security_events: SecurityEvent[];
+  incidents: Incident[];
+}

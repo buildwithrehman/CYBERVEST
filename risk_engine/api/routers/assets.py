@@ -53,6 +53,32 @@ async def get_asset(asset_id: str, user: AuthenticatedUser = Depends(require_rea
         raise HTTPException(status_code=404, detail="Asset not found")
     return res.data[0]
 
+
+@router.get("/{asset_id}/telemetry")
+async def get_asset_telemetry(asset_id: str, user: AuthenticatedUser = Depends(require_read_access())):
+    try:
+        import uuid
+        uuid.UUID(asset_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid asset ID format")
+
+    client = _get_db()
+    # Verify isolation
+    res = client.table("assets").select("id").eq("id", asset_id).eq("organization_id", user.organization_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    vulns = client.table("vulnerabilities").select("*").eq("asset_id", asset_id).order("cvss_score", desc=True).execute()
+    events = client.table("security_events").select("*").eq("asset_id", asset_id).order("timestamp", desc=True).execute()
+    incidents = client.table("incidents").select("*").eq("asset_id", asset_id).order("detected_at", desc=True).execute()
+
+    return {
+        "vulnerabilities": vulns.data,
+        "security_events": events.data,
+        "incidents": incidents.data
+    }
+
 @router.post("/")
+
 async def create_asset(payload: dict, user: AuthenticatedUser = Depends(require_write_access())):
     return {"status": "created"}

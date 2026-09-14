@@ -77,6 +77,9 @@ export default function AssetDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link href={`/fair?asset_id=${asset.id}`} className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0F3F2E] text-white rounded-md text-sm font-medium hover:bg-[#0F3F2E]/90 transition-colors mr-2">
+              <Shield className="w-4 h-4" /> Run FAIR Analysis
+            </Link>
              {asset.criticality && (
               <span className={`inline-flex px-3 py-1.5 rounded-md text-sm font-semibold capitalize border ${
                 asset.criticality === 'critical' ? 'bg-red-50 text-red-700 border-red-100' :

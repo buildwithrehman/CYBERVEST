@@ -10,6 +10,7 @@ export interface FAIRScenarioInput {
   scenario_id: string;
   scenario_name: string;
   organization_id?: string;
+  asset_id?: string;
   tef: PERTDistribution;
   susceptibility: PERTDistribution; // bounded 0 to 1
   productivity_loss: PERTDistribution;

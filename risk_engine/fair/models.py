@@ -21,6 +21,7 @@ class FAIRScenarioInput(BaseModel):
     scenario_id: str
     scenario_name: str
     organization_id: Optional[str] = None
+    asset_id: Optional[str] = None
     
     tef: PERTDistribution
     susceptibility: SusceptibilityDistribution

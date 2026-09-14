@@ -31,14 +31,48 @@ async def run_fair_scenario(
     
     client = get_supabase_client()
     
-    # Legitimately map or create the scenario for this organization
-    if request.scenario_id == "dash_baseline":
+    from fastapi import HTTPException
+    import uuid
+    # Asset validation and scenario creation logic
+    if request.asset_id:
+        try:
+            uuid.UUID(request.asset_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid asset ID format")
+            
+        asset_check = client.table("assets").select("id, business_service_id, name").eq("id", request.asset_id).eq("organization_id", user.organization_id).execute()
+        if not asset_check.data:
+            raise HTTPException(status_code=404, detail="Asset not found or access denied")
+            
+        asset_data = asset_check.data[0]
+        business_service_id = asset_data.get("business_service_id")
+        
+        # Determine if we have an existing scenario for this asset or if we need to create one
+        if request.scenario_id == "fair_baseline" or not request.scenario_id:
+            new_id = str(uuid.uuid4())
+            request.scenario_id = new_id
+            request.scenario_name = f"Asset Analysis: {asset_data['name']}"
+            
+            client.table("fair_scenarios").insert({
+                "id": new_id,
+                "organization_id": user.organization_id,
+                "asset_id": request.asset_id,
+                "business_service_id": business_service_id,
+                "name": request.scenario_name
+            }).execute()
+        else:
+            # Validate caller's scenario_id belongs to their org and matches the asset
+            res_check = client.table("fair_scenarios").select("id").eq("id", request.scenario_id).eq("organization_id", user.organization_id).execute()
+            if not res_check.data:
+                raise HTTPException(status_code=403, detail="Scenario not found or access denied.")
+                
+    elif request.scenario_id == "dash_baseline" or request.scenario_id == "fair_baseline":
+        # Global organization baseline scenario
         res_scene = client.table("fair_scenarios").select("id").eq("organization_id", user.organization_id).eq("name", "Annual Baseline Exposure").execute()
         if res_scene.data:
             request.scenario_id = res_scene.data[0]["id"]
             request.scenario_name = "Annual Baseline Exposure"
         else:
-            import uuid
             new_id = str(uuid.uuid4())
             client.table("fair_scenarios").insert({
                 "id": new_id,
@@ -51,7 +85,6 @@ async def run_fair_scenario(
         # Validate caller's scenario_id belongs to their org
         res_check = client.table("fair_scenarios").select("id").eq("id", request.scenario_id).eq("organization_id", user.organization_id).execute()
         if not res_check.data:
-            from fastapi import HTTPException
             raise HTTPException(status_code=403, detail="Scenario not found or access denied.")
 
     # Audit logging
@@ -79,6 +112,8 @@ async def run_fair_scenario(
         "eal": float(result.eal)
     }).execute()
     
+    result.scenario_id = request.scenario_id
+    result.scenario_name = request.scenario_name
     return result.model_dump()
 
 @router.get("/latest")

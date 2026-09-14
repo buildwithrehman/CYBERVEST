@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { useForm, Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api/client";
-import { FAIRResultOutput, FAIRScenarioInput } from "@/lib/types/api";
+import { FAIRResultOutput, FAIRScenarioInput, Asset } from "@/lib/types/api";
 import { LoadingState, ErrorState } from "@/components/ui/States";
 import {
   ShieldAlert,
   Network,
   ShieldCheck,
-  Calculator
+  Calculator,
+  Server,
+  Globe
 } from "lucide-react";
 
 const pertSchema = z.object({
@@ -43,6 +47,7 @@ const fairSchema = z.object({
   regulatory_loss: pertSchema,
   reputation_loss: pertSchema,
   simulation_count: z.number().min(100).max(100000),
+  asset_id: z.string().optional(),
 });
 
 function formatINR(val: number) {
@@ -69,7 +74,17 @@ const defaultFairScenario: FAIRScenarioInput = {
 
 type PertFieldNames = 'tef' | 'susceptibility' | 'productivity_loss' | 'response_cost' | 'regulatory_loss' | 'reputation_loss';
 
-export default function FairPage() {
+
+function FairPageContent() {
+  const searchParams = useSearchParams();
+  const asset_id = searchParams.get("asset_id");
+  
+  const { data: asset, isLoading: assetLoading } = useQuery({
+    queryKey: ["assets", asset_id],
+    queryFn: () => fetchApi<Asset>(`/api/assets/${asset_id}`),
+    enabled: !!asset_id,
+  });
+
   const [lastScenario, setLastScenario] = useState<FAIRScenarioInput | null>(null);
   const initialFetchRef = useRef(false);
 
@@ -77,6 +92,7 @@ export default function FairPage() {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<FAIRScenarioInput>({
     resolver: zodResolver(fairSchema),
     defaultValues: defaultFairScenario,
@@ -93,16 +109,30 @@ export default function FairPage() {
     }
   });
 
+  // Update default scenario ID and name if asset is loaded
+  // Update default scenario ID and name if asset is loaded
   const onSubmit = (data: FAIRScenarioInput) => {
+    if (asset_id) data.asset_id = asset_id;
     mutation.mutate(data);
   };
 
   useEffect(() => {
-    if (!initialFetchRef.current) {
+    if (asset && !initialFetchRef.current) {
       initialFetchRef.current = true;
-      mutation.mutate(defaultFairScenario);
+      const assetScenario = {
+        ...defaultFairScenario,
+        scenario_id: "fair_baseline",
+        scenario_name: `Asset Analysis: ${asset.name}`,
+        asset_id: asset.id
+      };
+      reset(assetScenario);
+    } else if (!asset_id && !initialFetchRef.current) {
+      initialFetchRef.current = true;
+      reset(defaultFairScenario);
     }
-  }, [mutation]);
+  }, [asset, asset_id, reset]);
+
+
 
   const renderPertInput = (name: PertFieldNames, label: string, isPercent = false) => {
     const errorNode = errors[name];
@@ -398,5 +428,13 @@ export default function FairPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function FairPage() {
+  return (
+    <Suspense fallback={<LoadingState message="Loading FAIR Calculator..." />}>
+      <FairPageContent />
+    </Suspense>
   );
 }

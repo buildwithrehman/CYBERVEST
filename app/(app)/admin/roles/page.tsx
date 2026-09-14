@@ -5,6 +5,7 @@ import { supabase } from "@/lib/auth/supabase";
 import { getOrganizationMembers, assignRole } from "@/lib/api/admin";
 import { OrganizationMember } from "@/lib/types/api";
 import { LoadingState, ErrorState } from "@/components/ui/States";
+import { inviteMemberAction } from "./actions";
 import { UserPlus, ShieldAlert, MoreVertical } from "lucide-react";
 
 export default function RolesAccessPage() {
@@ -17,6 +18,11 @@ export default function RolesAccessPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("SECURITY_ANALYST");
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -59,6 +65,33 @@ export default function RolesAccessPage() {
       mounted = false;
     };
   }, []);
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail || !inviteRole || !sessionToken) return;
+    
+    setIsInviting(true);
+    setInviteError(null);
+    try {
+      const res = await inviteMemberAction(inviteEmail, inviteRole, sessionToken);
+      if (!res.success) {
+        throw new Error(res.error || "Failed to invite member");
+      }
+      
+      setUpdateSuccess(`Successfully invited ${inviteEmail}`);
+      setIsInviteModalOpen(false);
+      setInviteEmail("");
+      
+      // Refresh list
+      const data = await getOrganizationMembers(sessionToken);
+      setMembers(data.members);
+    } catch (err: any) {
+      setInviteError(err.message || "An unexpected error occurred.");
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
 
   const currentUser = members.find(m => m.user_id === currentUserId);
   const isAdmin = currentUser?.role === "ADMIN";
@@ -103,12 +136,75 @@ export default function RolesAccessPage() {
           </p>
         </div>
         <button 
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#0F3F2E] text-white text-sm font-medium rounded opacity-50 cursor-not-allowed"
-          title="Invitations are currently disabled in this environment"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#0F3F2E] text-white text-sm font-medium rounded hover:bg-[#0F3F2E]/90 transition-colors disabled:opacity-50"
+          onClick={() => setIsInviteModalOpen(true)}
+          disabled={!isAdmin}
+          title={isAdmin ? "Invite a new member" : "Only admins can invite members"}
         >
           <UserPlus className="w-4 h-4" />
           Invite Member
         </button>
+        
+        {isInviteModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+              <h2 className="text-xl font-bold text-slate-900 mb-2">Invite Member</h2>
+              <p className="text-sm text-slate-500 mb-6">Send an invitation to join your organization.</p>
+              
+              {inviteError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+                  {inviteError}
+                </div>
+              )}
+              
+              <form onSubmit={handleInvite} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email Address *</label>
+                  <input 
+                    type="email" 
+                    required
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F3F2E]/20"
+                    placeholder="colleague@company.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Role *</label>
+                  <select
+                    value={inviteRole}
+                    onChange={e => setInviteRole(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F3F2E]/20 bg-white"
+                  >
+                    <option value="ADMIN">Admin</option>
+                    <option value="CISO">CISO</option>
+                    <option value="SECURITY_ANALYST">Security Analyst</option>
+                    <option value="RISK_MANAGER">Risk Manager</option>
+                    <option value="EXECUTIVE">Executive</option>
+                    <option value="AUDITOR">Auditor</option>
+                  </select>
+                </div>
+                
+                <div className="flex gap-3 justify-end mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsInviteModalOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isInviting || !inviteEmail}
+                    className="px-4 py-2 text-sm font-medium text-white bg-[#0F3F2E] hover:bg-[#0F3F2E]/90 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isInviting ? "Inviting..." : "Send Invitation"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
 
       

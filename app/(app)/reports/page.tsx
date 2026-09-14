@@ -59,6 +59,28 @@ export default function ReportsPage() {
     }
   };
 
+  
+  const handleDownloadCsv = () => {
+    if (!preview || preview.metadata.report_type !== "Framework / Evidence Report") return;
+    const controls = preview.content.controls || [];
+    const headers = ["Framework", "Control Code", "Title", "Status"];
+    const rows = controls.map((c: any) => [
+        `"${c.framework_controls?.frameworks?.short_name || 'N/A'}"`,
+        `"${c.framework_controls?.control_code || 'N/A'}"`,
+        `"${c.framework_controls?.title || 'N/A'}"`,
+        `"${c.status || 'N/A'}"`
+    ].join(','));
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "CYBERVEST_Framework_Evidence_Report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -211,6 +233,12 @@ export default function ReportsPage() {
                   <Download className="w-4 h-4" /> Download PDF
                 </button>
               )}
+              <button 
+                onClick={handleDownloadCsv}
+                className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded hover:bg-emerald-700 flex items-center gap-2 transition-colors"
+              >
+                <Download className="w-4 h-4" /> Download CSV
+              </button>
               <button 
                 onClick={handlePrint}
                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded hover:bg-slate-50 flex items-center gap-2"

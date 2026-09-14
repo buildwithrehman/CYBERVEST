@@ -84,8 +84,8 @@ export default function DashboardPage() {
     try {
       setReportError(null);
       const params = {
-        eal: fairData ? formatINR(fairData.eal) : "N/A",
-        p90: fairData ? formatINR(fairData.p90) : "N/A",
+        eal: fairData ? formatINR(fairData.eal || 0) : "N/A",
+        p90: fairData ? formatINR(fairData.p90 || 0) : "N/A",
         risk_drivers: fairData ? {
             "Threat Event Frequency (TEF)": `${fairData?.tef_mean || 0} events/yr`,
             "Vulnerability & Susceptibility": `${((fairData?.susceptibility_mean || 0) * 100).toFixed(1)}%`,
@@ -94,10 +94,10 @@ export default function DashboardPage() {
         } : {},
         top_risks: topRisks.map(r => `${r.name} (${r.vuln_critical_count} Crit Vulns, ${r.incident_count} Incidents)`),
         optimization: optResult ? {
-            baseline_eal: formatINR(optResult.baseline_eal),
-            optimized_eal: formatINR(optResult.optimized_eal),
-            investment: formatINR(optResult.total_investment),
-            rosi: `${(optResult.rosi * 100).toFixed(0)}%`,
+            baseline_eal: formatINR(optResult.baseline_eal || 0),
+            optimized_eal: formatINR(optResult.optimized_eal || 0),
+            investment: formatINR(optResult.total_investment || 0),
+            rosi: `${((optResult.rosi || 0) * 100).toFixed(0)}%`,
             controls: optResult.selected_mitigations.map(m => m.name)
         } : null
       };
@@ -214,19 +214,53 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* CARD 4: Risk Reduction Opportunity (Unsupported) */}
-        <div className="bg-slate-50 border border-border border-dashed rounded-2xl p-5 shadow-sm flex flex-col justify-center items-center text-center">
-          <TrendingDown className="w-6 h-6 text-slate-300 mb-2" />
-          <span className="text-sm text-slate-500 font-medium">Risk Reduction Opportunity</span>
-          <p className="text-xs text-slate-400 mt-1">Run Optimizer to calculate</p>
-        </div>
+        {/* CARD 4: Risk Reduction Opportunity */}
+        {optResult ? (
+          <div className="bg-white border border-border rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-500 font-medium">Risk Reduction Opportunity</span>
+                <TrendingDown className="w-5 h-5 text-slate-400" />
+              </div>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-3xl font-bold tracking-tight text-slate-900 tabular-nums">
+                  {formatINR(optResult.absolute_risk_reduction || 0)}
+                </span>
+              </div>
+              <p className="text-[12px] text-slate-500 mt-0.5">Estimated EAL decrease</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-slate-50 border border-border border-dashed rounded-2xl p-5 shadow-sm flex flex-col justify-center items-center text-center">
+            <TrendingDown className="w-6 h-6 text-slate-300 mb-2" />
+            <span className="text-sm text-slate-500 font-medium">Risk Reduction Opportunity</span>
+            <p className="text-xs text-slate-400 mt-1">{optLoading ? "Loading..." : "Run Optimizer to calculate"}</p>
+          </div>
+        )}
 
-        {/* CARD 5: Targeted Security Investment (Unsupported) */}
-        <div className="bg-slate-50 border border-border border-dashed rounded-2xl p-5 shadow-sm flex flex-col justify-center items-center text-center">
-          <Wallet className="w-6 h-6 text-slate-300 mb-2" />
-          <span className="text-sm text-slate-500 font-medium">Targeted Security Investment</span>
-          <p className="text-xs text-slate-400 mt-1">Run Optimizer to calculate</p>
-        </div>
+        {/* CARD 5: Targeted Security Investment */}
+        {optResult ? (
+          <div className="bg-white border border-border rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-500 font-medium">Targeted Security Investment</span>
+                <Wallet className="w-5 h-5 text-slate-400" />
+              </div>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-3xl font-bold tracking-tight text-slate-900 tabular-nums">
+                  {formatINR(optResult.total_investment || 0)}
+                </span>
+              </div>
+              <p className="text-[12px] text-slate-500 mt-0.5">Capital allocated</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-slate-50 border border-border border-dashed rounded-2xl p-5 shadow-sm flex flex-col justify-center items-center text-center">
+            <Wallet className="w-6 h-6 text-slate-300 mb-2" />
+            <span className="text-sm text-slate-500 font-medium">Targeted Security Investment</span>
+            <p className="text-xs text-slate-400 mt-1">{optLoading ? "Loading..." : "Run Optimizer to calculate"}</p>
+          </div>
+        )}
       </section>
 
       {/* MAIN GRID ROW 1 */}

@@ -93,10 +93,44 @@ function FairPageContent() {
     handleSubmit,
     formState: { errors },
     reset,
+    getValues,
   } = useForm<FAIRScenarioInput>({
     resolver: zodResolver(fairSchema),
     defaultValues: defaultFairScenario,
   });
+
+  const [telemetryData, setTelemetryData] = useState<any>(null);
+  const [telemetryLoading, setTelemetryLoading] = useState(false);
+  const [telemetryError, setTelemetryError] = useState<string | null>(null);
+
+  const fetchTelemetry = async () => {
+    if (!asset_id) return;
+    setTelemetryLoading(true);
+    setTelemetryError(null);
+    try {
+      const res = await fetch(`/api/assets/${asset_id}/fair-telemetry`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to fetch telemetry");
+      }
+      setTelemetryData(data);
+      if (data.status === "READY") {
+        const currentVals = getValues();
+        reset({
+          ...currentVals,
+          tef: data.tef.value,
+          susceptibility: data.susceptibility.value
+        });
+      } else {
+        setTelemetryError(data.warnings?.join(" ") || "Insufficient evidence.");
+      }
+    } catch (err: any) {
+      setTelemetryError(err.message);
+    } finally {
+      setTelemetryLoading(false);
+    }
+  };
+
 
   const mutation = useMutation({
     mutationFn: (data: FAIRScenarioInput) =>
@@ -185,6 +219,64 @@ function FairPageContent() {
               <input type="text" {...register("scenario_name")} className="w-full h-9 px-2.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500" />
               {errors.scenario_name && <span className="text-[10px] text-red-600">{errors.scenario_name.message}</span>}
             </div>
+            {asset_id && (
+              <div className="flex flex-col gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700">Telemetry Integration</span>
+                  <button 
+                    type="button" 
+                    onClick={fetchTelemetry}
+                    disabled={telemetryLoading}
+                    className="text-xs px-3 py-1 bg-[#E8F3EE] text-[#0F3F2E] border border-emerald-200 hover:bg-[#D1E8DD] rounded font-medium disabled:opacity-50 transition-colors"
+                  >
+                    {telemetryLoading ? "Loading..." : "Derive from Telemetry"}
+                  </button>
+                </div>
+                {telemetryError && (
+                  <div className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+                    <span className="font-semibold">Insufficient Evidence: </span>{telemetryError}
+                  </div>
+                )}
+                {telemetryData?.status === "READY" && (
+                  <div className="flex flex-col gap-1 text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-200 mt-1">
+                    <div className="font-semibold text-emerald-700 mb-1">Methodology Applied successfully</div>
+                    <div>• <strong>TEF ({telemetryData.tef.provenance.value.likely_val} events/yr)</strong>: {telemetryData.evidence.clustered_event_count} threat events clustered in {telemetryData.evidence.observation_days} days.</div>
+                    <div>• <strong>VULN ({telemetryData.susceptibility.provenance.value.likely_val})</strong>: P15 ML ({telemetryData.evidence.ml_probability_15d.toFixed(4)}) → LEF ({telemetryData.evidence.model_estimated_lef}) / TEF ({telemetryData.tef.provenance.value.likely_val}).</div>
+                    <div className="mt-1 text-slate-500 italic">Financial loss parameters require explicit expert assumption below.</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {asset_id && (
+              <div className="flex flex-col gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700">Telemetry Integration</span>
+                  <button 
+                    type="button" 
+                    onClick={fetchTelemetry}
+                    disabled={telemetryLoading}
+                    className="text-xs px-3 py-1 bg-[#E8F3EE] text-[#0F3F2E] border border-emerald-200 hover:bg-[#D1E8DD] rounded font-medium disabled:opacity-50 transition-colors"
+                  >
+                    {telemetryLoading ? "Loading..." : "Derive from Telemetry"}
+                  </button>
+                </div>
+                {telemetryError && (
+                  <div className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+                    <span className="font-semibold">Insufficient Evidence: </span>{telemetryError}
+                  </div>
+                )}
+                {telemetryData?.status === "READY" && (
+                  <div className="flex flex-col gap-1 text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-200 mt-1">
+                    <div className="font-semibold text-emerald-700 mb-1">Methodology Applied successfully</div>
+                    <div>• <strong>TEF ({telemetryData.tef.provenance.value.likely_val} events/yr)</strong>: {telemetryData.evidence.clustered_event_count} threat events clustered in {telemetryData.evidence.observation_days} days.</div>
+                    <div>• <strong>VULN ({telemetryData.susceptibility.provenance.value.likely_val})</strong>: P15 ML ({telemetryData.evidence.ml_probability_15d.toFixed(4)}) → LEF ({telemetryData.evidence.model_estimated_lef}) / TEF ({telemetryData.tef.provenance.value.likely_val}).</div>
+                    <div className="mt-1 text-slate-500 italic">Financial loss parameters require explicit expert assumption below.</div>
+                  </div>
+                )}
+              </div>
+            )}
+
 
             <div className="space-y-3">
               {renderPertInput("tef", "Threat Event Frequency (events/yr)")}

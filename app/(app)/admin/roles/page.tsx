@@ -111,6 +111,42 @@ export default function RolesAccessPage() {
         </button>
       </div>
 
+      
+      {/* Role Definitions */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm w-full mb-8">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <h2 className="text-lg font-semibold text-slate-900">Role Definitions</h2>
+          <p className="text-sm text-slate-500">System roles and their permitted access scopes.</p>
+        </div>
+        <div className="divide-y divide-slate-200">
+          {[
+            { id: "ADMIN", name: "Admin", desc: "Full administrative access to all system settings, users, and data.", scope: "Read/Write All, User Management", active: true },
+            { id: "CISO", name: "CISO", desc: "Executive oversight of security posture, risks, and investments.", scope: "Read/Write Cyber & Risk Data", active: true },
+            { id: "SECURITY_ANALYST", name: "Security Analyst", desc: "Manages operational security, vulnerabilities, and telemetry.", scope: "Read/Write Assets & Security", active: true },
+            { id: "RISK_MANAGER", name: "Risk Manager", desc: "Conducts FAIR assessments and models financial risk scenarios.", scope: "Read/Write Risk & FAIR Data", active: true },
+            { id: "EXECUTIVE", name: "Executive", desc: "Views high-level executive dashboards and ROSI metrics.", scope: "Read Only (Dashboards, Risk)", active: true },
+            { id: "AUDITOR", name: "Auditor", desc: "Reviews compliance frameworks, evidence, and audit logs.", scope: "Read Only (Compliance, Audit)", active: true },
+            { id: "COMPLIANCE_OFFICER", name: "Compliance Officer", desc: "Manages compliance frameworks and uploads evidence.", scope: "Read/Write Compliance", active: false },
+            { id: "VIEWER", name: "Viewer", desc: "Basic read-only access to non-sensitive dashboards.", scope: "Read Only (Basic)", active: false }
+          ].map(r => (
+            <div key={r.id} className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-slate-900">{r.name}</h3>
+                  {!r.active && <span className="text-[10px] uppercase tracking-wider font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Coming Soon</span>}
+                </div>
+                <p className="text-sm text-slate-500 mt-1">{r.desc}</p>
+              </div>
+              <div className="sm:text-right">
+                <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
+                  {r.scope}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {(updateError || updateSuccess) && (
         <div className={`p-4 rounded text-sm flex items-start gap-3 \${updateError ? 'bg-red-50 text-red-800' : 'bg-green-50 text-[#0F3F2E]'}`}>
           {updateError && <ShieldAlert className="w-5 h-5 shrink-0" />}

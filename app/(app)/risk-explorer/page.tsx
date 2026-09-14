@@ -14,7 +14,13 @@ import {
   SlidersHorizontal,
   FileBox,
   Target,
-  RefreshCcw
+  RefreshCcw,
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 export default function RiskExplorerPage() {
@@ -22,6 +28,58 @@ export default function RiskExplorerPage() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [baselineOpen, setBaselineOpen] = useState(false);
+
+  // Compliance baseline data
+  const { data: complianceData, isLoading: complianceLoading, error: complianceError } = useQuery({
+    queryKey: ["compliance_overview"],
+    queryFn: () => fetchApi<{
+      organization_id: string;
+      framework_posture: Record<string, { IMPLEMENTED: number; PARTIALLY_IMPLEMENTED: number; GAP: number; NOT_ASSESSED: number }>;
+      critical_gaps: number;
+      high_gaps: number;
+    }>("/api/compliance/overview"),
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+
+  // Derive baseline metrics from real compliance data
+  const baselineMetrics = useMemo(() => {
+    if (!complianceData?.framework_posture) return null;
+    const posture = complianceData.framework_posture;
+    const frameworks = Object.keys(posture);
+    if (frameworks.length === 0) return null;
+
+    let totalImplemented = 0;
+    let totalPartial = 0;
+    let totalGap = 0;
+    let totalNotAssessed = 0;
+
+    for (const fw of frameworks) {
+      totalImplemented += posture[fw].IMPLEMENTED;
+      totalPartial += posture[fw].PARTIALLY_IMPLEMENTED;
+      totalGap += posture[fw].GAP;
+      totalNotAssessed += posture[fw].NOT_ASSESSED;
+    }
+
+    const totalControls = totalImplemented + totalPartial + totalGap + totalNotAssessed;
+    const assessedControls = totalImplemented + totalPartial + totalGap;
+    const baselinePct = assessedControls > 0 ? (totalImplemented / assessedControls) * 100 : null;
+
+    return {
+      frameworks,
+      frameworkPosture: posture,
+      totalImplemented,
+      totalPartial,
+      totalGap,
+      totalNotAssessed,
+      totalControls,
+      assessedControls,
+      baselinePct,
+      criticalGaps: complianceData.critical_gaps,
+      highGaps: complianceData.high_gaps,
+    };
+  }, [complianceData]);
 
   // Filter States
   const [serviceFilter, setServiceFilter] = useState("All");
@@ -181,9 +239,13 @@ export default function RiskExplorerPage() {
           <p className="text-sm text-slate-500 mt-0.5">Prioritize cyber risk based on real technical exposure</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="h-10 px-4 rounded-lg border border-border bg-white hover:bg-slate-50 text-slate-900 text-sm font-medium flex items-center gap-2 shadow-sm transition-colors disabled:opacity-50" disabled>
+          <button 
+            onClick={() => setBaselineOpen(prev => !prev)}
+            className={`h-10 px-4 rounded-lg border bg-white text-slate-900 text-sm font-medium flex items-center gap-2 shadow-sm transition-colors ${baselineOpen ? 'border-[#0F3F2E] ring-1 ring-[#0F3F2E]/20' : 'border-border hover:bg-slate-50'}`}
+          >
             <SlidersHorizontal className="w-4 h-4" />
-            <span>Configure Baselines</span>
+            <span>Configuration Baseline</span>
+            {baselineOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
           <button 
             onClick={handleExport}
@@ -199,6 +261,127 @@ export default function RiskExplorerPage() {
       {exportError && (
         <div className="p-3 mb-4 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
           {exportError}
+        </div>
+      )}
+
+      {/* CONFIGURATION BASELINE PANEL */}
+      {baselineOpen && (
+        <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-[#0F3F2E]" />
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Configuration Baseline</h3>
+              <p className="text-sm text-slate-500">Security control implementation posture derived from organization compliance data</p>
+            </div>
+          </div>
+          <div className="p-5">
+            {complianceLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0F3F2E]"></div>
+              </div>
+            ) : complianceError ? (
+              <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+                Failed to load compliance baseline data.
+              </div>
+            ) : !baselineMetrics || baselineMetrics.totalControls === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500">
+                <ShieldCheck className="w-8 h-8 text-slate-300 mb-3" />
+                <h4 className="font-semibold text-slate-700 mb-1">Insufficient Data</h4>
+                <p className="text-sm max-w-sm">No organization controls have been mapped. Configure compliance frameworks in the Compliance Center to populate the configuration baseline.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-5">
+                {/* OVERALL BASELINE SCORE */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex-1">
+                    <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Overall Baseline Compliance</div>
+                    {baselineMetrics.baselinePct !== null ? (
+                      <div className="flex items-end gap-3">
+                        <span className={`text-4xl font-bold tabular-nums ${baselineMetrics.baselinePct >= 70 ? 'text-[#0F3F2E]' : baselineMetrics.baselinePct >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                          {baselineMetrics.baselinePct.toFixed(1)}%
+                        </span>
+                        <span className="text-sm text-slate-500 mb-1">
+                          {baselineMetrics.totalImplemented} of {baselineMetrics.assessedControls} assessed controls implemented
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-500">No assessed controls to calculate baseline</span>
+                    )}
+                    <div className="mt-3 h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
+                      {baselineMetrics.assessedControls > 0 && (
+                        <>
+                          <div className="bg-[#0F3F2E] h-full transition-all" style={{ width: `${(baselineMetrics.totalImplemented / baselineMetrics.totalControls) * 100}%` }} />
+                          <div className="bg-amber-400 h-full transition-all" style={{ width: `${(baselineMetrics.totalPartial / baselineMetrics.totalControls) * 100}%` }} />
+                          <div className="bg-red-400 h-full transition-all" style={{ width: `${(baselineMetrics.totalGap / baselineMetrics.totalControls) * 100}%` }} />
+                          <div className="bg-slate-200 h-full transition-all" style={{ width: `${(baselineMetrics.totalNotAssessed / baselineMetrics.totalControls) * 100}%` }} />
+                        </>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-500">
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#0F3F2E] inline-block" />Implemented ({baselineMetrics.totalImplemented})</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />Partial ({baselineMetrics.totalPartial})</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />Gap ({baselineMetrics.totalGap})</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-200 inline-block" />Not Assessed ({baselineMetrics.totalNotAssessed})</span>
+                    </div>
+                  </div>
+
+                  {/* OPEN GAPS SUMMARY */}
+                  <div className="sm:border-l sm:border-slate-200 sm:pl-5 flex gap-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-center min-w-[80px]">
+                      <div className="text-2xl font-bold text-red-700 tabular-nums">{baselineMetrics.criticalGaps}</div>
+                      <div className="text-[11px] text-red-600 font-medium uppercase tracking-wider">Critical</div>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-center min-w-[80px]">
+                      <div className="text-2xl font-bold text-amber-700 tabular-nums">{baselineMetrics.highGaps}</div>
+                      <div className="text-[11px] text-amber-600 font-medium uppercase tracking-wider">High</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PER-FRAMEWORK BREAKDOWN */}
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Framework Posture</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {baselineMetrics.frameworks.map(fw => {
+                      const p = baselineMetrics.frameworkPosture[fw];
+                      const assessed = p.IMPLEMENTED + p.PARTIALLY_IMPLEMENTED + p.GAP;
+                      const total = assessed + p.NOT_ASSESSED;
+                      const pct = assessed > 0 ? (p.IMPLEMENTED / assessed) * 100 : null;
+                      return (
+                        <div key={fw} className="border border-slate-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-slate-900">{fw}</span>
+                            {pct !== null ? (
+                              <span className={`text-sm font-bold tabular-nums ${pct >= 70 ? 'text-[#0F3F2E]' : pct >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                                {pct.toFixed(0)}%
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">N/A</span>
+                            )}
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
+                            {total > 0 && (
+                              <>
+                                <div className="bg-[#0F3F2E] h-full" style={{ width: `${(p.IMPLEMENTED / total) * 100}%` }} />
+                                <div className="bg-amber-400 h-full" style={{ width: `${(p.PARTIALLY_IMPLEMENTED / total) * 100}%` }} />
+                                <div className="bg-red-400 h-full" style={{ width: `${(p.GAP / total) * 100}%` }} />
+                              </>
+                            )}
+                          </div>
+                          <div className="flex justify-between text-[11px] text-slate-500 mt-1.5">
+                            <span><CheckCircle2 className="w-3 h-3 inline text-[#0F3F2E] mr-0.5" />{p.IMPLEMENTED}</span>
+                            <span><AlertTriangle className="w-3 h-3 inline text-amber-500 mr-0.5" />{p.PARTIALLY_IMPLEMENTED}</span>
+                            <span><XCircle className="w-3 h-3 inline text-red-400 mr-0.5" />{p.GAP}</span>
+                            <span className="text-slate-400">{total} total</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
       {/* FILTER BAR */}

@@ -479,7 +479,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-[12px] text-slate-500 flex justify-between">
                         <span>EAL Reduction:</span>
-                        <span className="font-semibold text-slate-700">{formatINR(mit.modeled_eal_reduction)}</span>
+                        <span className="font-semibold text-slate-700">{formatINR(mit.modeled_eal_reduction || 0)}</span>
                       </div>
                     </div>
                   ))}

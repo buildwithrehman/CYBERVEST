@@ -55,3 +55,47 @@ export async function uploadEvidenceAction(formData: FormData, token: string) {
     return { success: false, error: error.message };
   }
 }
+
+export async function getEvidenceDownloadUrlAction(path: string, token: string) {
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) throw new Error("Unauthorized");
+
+    const { data: members, error: memberError } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .limit(1);
+
+    if (memberError || !members || members.length === 0) {
+      throw new Error("No organization found");
+    }
+    
+    const orgId = members[0].organization_id;
+
+    // Verify path belongs to an evidence record for this org
+    const { data: evidenceRecord, error: evidenceError } = await supabase
+      .from('evidence')
+      .select('id')
+      .eq('storage_path', path)
+      .eq('organization_id', orgId)
+      .limit(1);
+
+    if (evidenceError || !evidenceRecord || evidenceRecord.length === 0) {
+      throw new Error("Artifact not found or access denied");
+    }
+
+    // Generate signed URL
+    const { data, error: signError } = await supabase.storage
+      .from('evidence')
+      .createSignedUrl(path, 60);
+
+    if (signError || !data?.signedUrl) {
+      throw new Error(signError?.message || "Failed to generate download URL");
+    }
+
+    return { success: true, signedUrl: data.signedUrl };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}

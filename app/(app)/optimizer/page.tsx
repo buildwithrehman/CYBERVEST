@@ -109,6 +109,14 @@ const certifiedMitigations: Mitigation[] = [
 
 export default function OptimizerPage() {
   const [budget, setBudget] = useState<number>(10000000);
+  const [activeCandidates, setActiveCandidates] = useState<Set<string>>(new Set(certifiedMitigations.map(m => m.id)));
+
+  const toggleCandidate = (id: string) => {
+    const next = new Set(activeCandidates);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setActiveCandidates(next);
+  };
 
     const mutation = useMutation({
     mutationFn: (req: OptimizationRequest) =>
@@ -127,7 +135,7 @@ export default function OptimizerPage() {
     mutation.mutate({
       organization_id: "00000000-0000-0000-0000-000000000000",
       budget: budget,
-      mitigations: certifiedMitigations,
+      mitigations: certifiedMitigations.filter(m => activeCandidates.has(m.id)),
       baseline_scenario: defaultFairScenario
     });
   };
@@ -331,18 +339,17 @@ export default function OptimizerPage() {
                 <h2 className="text-lg font-semibold text-slate-900">Available Security Investments</h2>
                 <p className="text-sm text-slate-500">Candidate controls available for optimization</p>
               </div>
-              {mutation.data && (
-                <div className="px-3 py-1 rounded-full text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
-                  {mutation.data.selected_mitigations.length} of {certifiedMitigations.length} Selected
+              <div className="px-3 py-1 rounded-full text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
+                  {activeCandidates.size} of {certifiedMitigations.length} Available
                 </div>
-              )}
             </div>
             
             <div className="mt-5 space-y-3">
               {certifiedMitigations.map(mitig => {
-                const selected = isSelected(mitig.id);
+                const selected = activeCandidates.has(mitig.id);
+                const pickedByOptimizer = isSelected(mitig.id);
                 return (
-                  <div key={mitig.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-colors ${selected ? 'border-[#0F3F2E] bg-emerald-50/30' : 'border-slate-200 bg-white'}`}>
+                  <div key={mitig.id} onClick={() => toggleCandidate(mitig.id)} className={`cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-colors ${selected ? 'border-[#0F3F2E] bg-emerald-50/30' : 'border-slate-200 bg-white'}`}>
                     <div className="flex items-start gap-3">
                       <div className={`mt-1 w-5 h-5 rounded-full flex items-center justify-center border ${selected ? 'border-[#0F3F2E] bg-[#0F3F2E] text-white' : 'border-slate-300'}`}>
                         {selected && <CheckCircle2 className="w-3 h-3" />}
@@ -354,7 +361,7 @@ export default function OptimizerPage() {
                     </div>
                     <div className="text-left sm:text-right mt-3 sm:mt-0 pl-8 sm:pl-0 flex-shrink-0">
                       <div className="text-sm font-bold text-slate-900">Cost: {formatINR(mitig.cost)}</div>
-                      {selected && (
+                      {pickedByOptimizer && mutation.data && (
                         <div className="text-xs text-[#0F3F2E] font-semibold mt-1">Included in Portfolio</div>
                       )}
                     </div>

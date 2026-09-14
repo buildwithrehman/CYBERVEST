@@ -78,7 +78,7 @@ type PertFieldNames = 'tef' | 'susceptibility' | 'productivity_loss' | 'response
 function FairPageContent() {
   const searchParams = useSearchParams();
   const asset_id = searchParams.get("asset_id");
-  
+
   const { data: asset, isLoading: assetLoading } = useQuery({
     queryKey: ["assets", asset_id],
     queryFn: () => fetchApi<Asset>(`/api/assets/${asset_id}`),
@@ -213,7 +213,7 @@ function FairPageContent() {
         <div className="w-full xl:w-[380px] shrink-0 flex flex-col gap-4">
           <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl border border-border shadow-sm p-5 flex flex-col gap-4 sticky top-6">
             <h2 className="text-lg font-semibold text-slate-900 border-b border-slate-100 pb-2">Scenario Parameters</h2>
-            
+
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-700">Scenario Name</label>
               <input type="text" {...register("scenario_name")} className="w-full h-9 px-2.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500" />
@@ -223,8 +223,8 @@ function FairPageContent() {
               <div className="flex flex-col gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-700">Telemetry Integration</span>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={fetchTelemetry}
                     disabled={telemetryLoading}
                     className="text-xs px-3 py-1 bg-[#E8F3EE] text-[#0F3F2E] border border-emerald-200 hover:bg-[#D1E8DD] rounded font-medium disabled:opacity-50 transition-colors"
@@ -238,11 +238,39 @@ function FairPageContent() {
                   </div>
                 )}
                 {telemetryData?.status === "READY" && (
-                  <div className="flex flex-col gap-1 text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-200 mt-1">
-                    <div className="font-semibold text-emerald-700 mb-1">Methodology Applied successfully</div>
-                    <div>• <strong>TEF ({telemetryData.tef.provenance.value.likely_val} events/yr)</strong>: {telemetryData.evidence.clustered_event_count} threat events clustered in {telemetryData.evidence.observation_days} days.</div>
-                    <div>• <strong>VULN ({telemetryData.susceptibility.provenance.value.likely_val})</strong>: P15 ML ({telemetryData.evidence.ml_probability_15d.toFixed(4)}) → LEF ({telemetryData.evidence.model_estimated_lef}) / TEF ({telemetryData.tef.provenance.value.likely_val}).</div>
-                    <div className="mt-1 text-slate-500 italic">Financial loss parameters require explicit expert assumption below.</div>
+                  <div className="flex flex-col gap-2 text-[10px] text-slate-700 bg-white p-3 rounded border border-emerald-100 shadow-sm mt-1">
+                    <div className="font-semibold text-emerald-800 border-b border-emerald-50 pb-1 flex justify-between">
+                      <span>Telemetry Methodology Applied</span>
+                      <span className="text-emerald-600">Source: Synthetic/Demo telemetry</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <div className="font-semibold text-slate-900">TEF: {telemetryData.tef.provenance.value.likely_val} events/yr</div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 ml-2">
+                        <div><span className="text-slate-500">Qualifying events:</span> {telemetryData.evidence.qualifying_event_count}</div>
+                        <div><span className="text-slate-500">Clustered events:</span> {telemetryData.evidence.clustered_event_count}</div>
+                        <div><span className="text-slate-500">Observation window:</span> {telemetryData.evidence.observation_days} days</div>
+                        <div><span className="text-slate-500">Source type:</span> {telemetryData.tef.source_type}</div>
+                        <div className="col-span-2"><span className="text-slate-500">Confidence:</span> {telemetryData.tef.provenance.confidence}</div>
+                        <div className="col-span-2 text-slate-500 italic">Assumptions: 1-hour rolling clustering window, PERT ASSUMPTION (+/- 50%)</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1 mt-1 border-t border-slate-100 pt-2">
+                      <div className="font-semibold text-slate-900">Susceptibility: {telemetryData.susceptibility.provenance.value.likely_val}</div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 ml-2">
+                        <div><span className="text-slate-500">ML P15:</span> {telemetryData.evidence.ml_probability_15d.toFixed(4)}</div>
+                        <div><span className="text-slate-500">Model:</span> {telemetryData.evidence.model_version}</div>
+                        <div><span className="text-slate-500">Estimated LEF:</span> {telemetryData.evidence.model_estimated_lef}</div>
+                        <div><span className="text-slate-500">TEF Used:</span> {telemetryData.tef.provenance.value.likely_val}</div>
+                        <div className="col-span-2"><span className="text-slate-500">Confidence:</span> {telemetryData.susceptibility.provenance.confidence}</div>
+                        <div className="col-span-2 text-slate-500 italic">Assumptions: Poisson distribution, Stationarity, Independence</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 p-1.5 bg-amber-50 rounded border border-amber-100 text-amber-800 font-medium">
+                      Financial inputs are strictly marked as EXPERT_ASSUMPTION / user input.
+                    </div>
                   </div>
                 )}
               </div>
@@ -252,8 +280,8 @@ function FairPageContent() {
               <div className="flex flex-col gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-700">Telemetry Integration</span>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={fetchTelemetry}
                     disabled={telemetryLoading}
                     className="text-xs px-3 py-1 bg-[#E8F3EE] text-[#0F3F2E] border border-emerald-200 hover:bg-[#D1E8DD] rounded font-medium disabled:opacity-50 transition-colors"
@@ -267,11 +295,39 @@ function FairPageContent() {
                   </div>
                 )}
                 {telemetryData?.status === "READY" && (
-                  <div className="flex flex-col gap-1 text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-200 mt-1">
-                    <div className="font-semibold text-emerald-700 mb-1">Methodology Applied successfully</div>
-                    <div>• <strong>TEF ({telemetryData.tef.provenance.value.likely_val} events/yr)</strong>: {telemetryData.evidence.clustered_event_count} threat events clustered in {telemetryData.evidence.observation_days} days.</div>
-                    <div>• <strong>VULN ({telemetryData.susceptibility.provenance.value.likely_val})</strong>: P15 ML ({telemetryData.evidence.ml_probability_15d.toFixed(4)}) → LEF ({telemetryData.evidence.model_estimated_lef}) / TEF ({telemetryData.tef.provenance.value.likely_val}).</div>
-                    <div className="mt-1 text-slate-500 italic">Financial loss parameters require explicit expert assumption below.</div>
+                  <div className="flex flex-col gap-2 text-[10px] text-slate-700 bg-white p-3 rounded border border-emerald-100 shadow-sm mt-1">
+                    <div className="font-semibold text-emerald-800 border-b border-emerald-50 pb-1 flex justify-between">
+                      <span>Telemetry Methodology Applied</span>
+                      <span className="text-emerald-600">Source: Synthetic/Demo telemetry</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <div className="font-semibold text-slate-900">TEF: {telemetryData.tef.provenance.value.likely_val} events/yr</div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 ml-2">
+                        <div><span className="text-slate-500">Qualifying events:</span> {telemetryData.evidence.qualifying_event_count}</div>
+                        <div><span className="text-slate-500">Clustered events:</span> {telemetryData.evidence.clustered_event_count}</div>
+                        <div><span className="text-slate-500">Observation window:</span> {telemetryData.evidence.observation_days} days</div>
+                        <div><span className="text-slate-500">Source type:</span> {telemetryData.tef.source_type}</div>
+                        <div className="col-span-2"><span className="text-slate-500">Confidence:</span> {telemetryData.tef.provenance.confidence}</div>
+                        <div className="col-span-2 text-slate-500 italic">Assumptions: 1-hour rolling clustering window, PERT ASSUMPTION (+/- 50%)</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1 mt-1 border-t border-slate-100 pt-2">
+                      <div className="font-semibold text-slate-900">Susceptibility: {telemetryData.susceptibility.provenance.value.likely_val}</div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 ml-2">
+                        <div><span className="text-slate-500">ML P15:</span> {telemetryData.evidence.ml_probability_15d.toFixed(4)}</div>
+                        <div><span className="text-slate-500">Model:</span> {telemetryData.evidence.model_version}</div>
+                        <div><span className="text-slate-500">Estimated LEF:</span> {telemetryData.evidence.model_estimated_lef}</div>
+                        <div><span className="text-slate-500">TEF Used:</span> {telemetryData.tef.provenance.value.likely_val}</div>
+                        <div className="col-span-2"><span className="text-slate-500">Confidence:</span> {telemetryData.susceptibility.provenance.confidence}</div>
+                        <div className="col-span-2 text-slate-500 italic">Assumptions: Poisson distribution, Stationarity, Independence</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 p-1.5 bg-amber-50 rounded border border-amber-100 text-amber-800 font-medium">
+                      Financial inputs are strictly marked as EXPERT_ASSUMPTION / user input.
+                    </div>
                   </div>
                 )}
               </div>
@@ -293,8 +349,8 @@ function FairPageContent() {
               {errors.simulation_count && <span className="text-[10px] text-red-600">{errors.simulation_count.message}</span>}
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={mutation.isPending}
               className="mt-2 w-full h-10 rounded-lg bg-[#0F3F2E] text-white hover:bg-[#14533D] font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
@@ -311,7 +367,7 @@ function FairPageContent() {
           {mutation.isError && (
             <ErrorState error={mutation.error as Error} />
           )}
-          
+
           {mutation.data && !mutation.isPending && (
             <>
               {/* ASSET CONTEXT STRIP */}
@@ -404,27 +460,27 @@ function FairPageContent() {
                     <line stroke="#E2E8E0" strokeDasharray="4" strokeWidth="0.7" x1="0" x2="1000" y1="150" y2="150"></line>
                     <line stroke="#E2E8E0" strokeDasharray="4" strokeWidth="0.7" x1="0" x2="1000" y1="100" y2="100"></line>
                     <line stroke="#E2E8E0" strokeDasharray="4" strokeWidth="0.7" x1="0" x2="1000" y1="50" y2="50"></line>
-                    
+
                     <path d="M 50,200 C 120,200 160,185 200,140 C 240,95 280,30 360,25 C 440,20 490,65 560,110 C 640,155 720,185 820,195 C 890,200 950,200 980,200 L 980,200 L 50,200 Z" fill="url(#curveGradient)"></path>
                     <path d="M 50,200 C 120,200 160,185 200,140 C 240,95 280,30 360,25 C 440,20 490,65 560,110 C 640,155 720,185 820,195 C 890,200 950,200 980,200" fill="none" stroke="#0F3F2E" strokeLinecap="round" strokeWidth="2.5"></path>
-                    
+
                     {/* P10 Marker */}
                     <line stroke="#2E6951" strokeDasharray="3" strokeWidth="1.5" x1="220" x2="220" y1="120" y2="200"></line>
                     <circle cx="220" cy="120" fill="#2E6951" r="4"></circle>
-                    
+
                     {/* P50 Marker */}
                     <line stroke="#111827" strokeDasharray="3" strokeWidth="1.5" x1="450" x2="450" y1="50" y2="200"></line>
                     <circle cx="450" cy="50" fill="#111827" r="4"></circle>
-                    
+
                     {/* EAL Marker */}
                     <line stroke="#D97706" strokeWidth="2" x1="495" x2="495" y1="75" y2="200"></line>
                     <circle cx="495" cy="75" fill="#D97706" r="4.5"></circle>
-                    
+
                     {/* P90 Marker */}
                     <line stroke="#B91C1C" strokeDasharray="4" strokeWidth="2" x1="760" x2="760" y1="172" y2="200"></line>
                     <circle cx="760" cy="172" fill="#B91C1C" r="4"></circle>
                   </svg>
-                  
+
                   {/* Tooltips */}
                   <div className="absolute top-10 left-[22%] transform -translate-x-1/2 bg-white px-2 py-0.5 rounded shadow border border-slate-200 text-center">
                     <span className="text-[10px] font-semibold text-[#2E6951] block uppercase">P10</span>
@@ -451,7 +507,7 @@ function FairPageContent() {
                   <h2 className="text-xl font-bold text-slate-900">FAIR Mathematical Calculation Chain</h2>
                   <p className="text-sm text-slate-500">Backend-calculated explanation of the certified model: LEF = TEF × Susceptibility</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 relative">
                   {/* TEF */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between">
@@ -464,7 +520,7 @@ function FairPageContent() {
                       <div className="text-xs text-slate-500 mt-0.5">events/yr (Mean)</div>
                     </div>
                   </div>
-                  
+
                   {/* Susceptibility */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between">
                     <div>
@@ -476,7 +532,7 @@ function FairPageContent() {
                       <div className="text-xs text-slate-500 mt-0.5">probability (Mean)</div>
                     </div>
                   </div>
-                  
+
                   {/* LEF */}
                   <div className="bg-[#E8F3EE] border border-emerald-200 rounded-xl p-4 flex flex-col justify-between">
                     <div>
@@ -488,7 +544,7 @@ function FairPageContent() {
                       <div className="text-xs text-slate-500 mt-0.5">loss events/yr (Derived)</div>
                     </div>
                   </div>
-                  
+
                   {/* LM */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between">
                     <div>
@@ -500,7 +556,7 @@ function FairPageContent() {
                       <div className="text-xs text-slate-500 mt-0.5">INR/event (Mean)</div>
                     </div>
                   </div>
-                  
+
                   {/* EAL */}
                   <div className="bg-[#0F3F2E] text-white rounded-xl p-4 flex flex-col justify-between shadow-sm">
                     <div>

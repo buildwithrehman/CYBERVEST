@@ -127,7 +127,7 @@ async def get_fair_telemetry(asset_id: str, user: AuthenticatedUser = Depends(re
 
     # 2. Query qualifying security events
     qualifying_types = ["malware_detected", "data_exfiltration_attempt", "unauthorized_access_attempt", "failed_login", "authentication_failure"]
-    events_res = client.table("security_events").select("id, event_type, timestamp").eq("asset_id", asset_id).in_("event_type", qualifying_types).order("timestamp").execute()
+    events_res = client.table("security_events").select("id, event_type, timestamp").eq("asset_id", asset_id).in_("event_type", qualifying_types).gte("timestamp", created_dt.isoformat() + "Z").lte("timestamp", now.isoformat() + "Z").order("timestamp").execute()
     events = events_res.data
     
     qualifying_event_count = len(events)
@@ -162,12 +162,11 @@ async def get_fair_telemetry(asset_id: str, user: AuthenticatedUser = Depends(re
         if not ev_list_sorted:
             continue
             
-        current_cluster_start = ev_list_sorted[0]
         clusters = 1
         for i in range(1, len(ev_list_sorted)):
-            if (ev_list_sorted[i] - current_cluster_start).total_seconds() > 3600:
+            # Contiguous rolling window: compare to immediately preceding event
+            if (ev_list_sorted[i] - ev_list_sorted[i-1]).total_seconds() > 3600:
                 clusters += 1
-                current_cluster_start = ev_list_sorted[i]
         clustered_count += clusters
 
     if clustered_count == 0:
@@ -239,7 +238,7 @@ async def get_fair_telemetry(asset_id: str, user: AuthenticatedUser = Depends(re
                 "parameter": "tef",
                 "value": {"min_val": round(tef_min, 2), "likely_val": round(tef_likely, 2), "max_val": round(tef_max, 2)},
                 "source_type": "DERIVED_METRIC",
-                "source_records": "security_events",
+                "source_records": "security_events (Synthetic/Demo telemetry)",
                 "observation_window": days_observed,
                 "transformation": "annualized_1hr_clustered_rate",
                 "assumptions": tef_assumptions,

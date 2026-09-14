@@ -49,6 +49,7 @@ function formatINR(val: number) {
 
 export default function DashboardPage() {
   const [reportError, setReportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   
   const { data: fairData, isLoading: fairLoading, error: fairError } = useQuery({
     queryKey: ["fair_latest"],
@@ -83,6 +84,7 @@ export default function DashboardPage() {
   const handleExport = async () => {
     try {
       setReportError(null);
+      setIsExporting(true);
       const params = {
         eal: fairData ? formatINR(fairData.eal || 0) : "N/A",
         p90: fairData ? formatINR(fairData.p90 || 0) : "N/A",
@@ -126,6 +128,8 @@ export default function DashboardPage() {
       window.URL.revokeObjectURL(url);
     } catch (e: any) {
       setReportError("Failed to generate PDF. Check backend logs.");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -147,12 +151,21 @@ export default function DashboardPage() {
           <div className="flex items-center px-2.5 py-1.5 rounded-lg bg-white border border-border text-sm font-medium shadow-sm tabular-nums">
             <span className="text-slate-500 mr-1 text-xs">Currency:</span> [INR ₹]
           </div>
-          <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0F3F2E] hover:bg-[#14533D] text-white text-[14px] transition-colors shadow-sm font-medium">
-            Export Executive Brief
+          <button 
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0F3F2E] hover:bg-[#14533D] disabled:opacity-70 text-white text-[14px] transition-colors shadow-sm font-medium"
+          >
+            {isExporting ? "Generating..." : "Export Executive Brief"}
           </button>
         </div>
       </div>
 
+      {reportError && (
+        <div className="p-3 bg-red-50 text-red-700 text-sm border border-red-200 rounded-lg">
+          {reportError}
+        </div>
+      )}
       {/* KPI ROW (5 COMPACT CARDS) */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* CARD 1: Expected Annual Loss */}

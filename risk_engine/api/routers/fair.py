@@ -29,6 +29,11 @@ async def run_fair_scenario(
         
     result = await run_in_threadpool(calculate_fair, request)
     
+    if request.scenario_id == "demo_baseline" or str(request.scenario_id).startswith("fair_whatif"):
+        result.scenario_id = request.scenario_id
+        result.scenario_name = request.scenario_name
+        return result.model_dump()
+    
     client = get_supabase_client()
     
     from fastapi import HTTPException

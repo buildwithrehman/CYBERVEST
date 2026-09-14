@@ -43,45 +43,27 @@ export default function EvidencePage() {
     setUploading(true);
     setError(null);
     try {
-      // 1. Get user and organization
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
-      
-      const { data: orgs, error: orgError } = await supabase.from('organizations').select('id').limit(1);
-      if (orgError || !orgs || orgs.length === 0) throw new Error("Organization not found");
-      
-      const orgId = orgs[0].id;
-      
-      // 2. Upload to Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${orgId}/${fileName}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('evidence')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false });
-        
-      if (uploadError) {
-        console.error("Storage upload error:", uploadError);
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-      
-      // 3. Create database record
-      const { error: dbError } = await supabase.from('evidence').insert({
-        organization_id: orgId,
-        title,
-        description,
-        storage_path: filePath,
-        evidence_type: file.type || 'application/octet-stream',
-        source: 'manual_upload',
-        uploaded_by: session.user.id
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', title);
+      formData.append('description', description);
+
+      const res = await fetch('/api/evidence/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: formData
       });
-      
-      if (dbError) {
-        throw new Error("Failed to save evidence record.");
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Upload failed");
       }
-      
-      // Reset form
+
       setFile(null);
       setTitle("");
       setDescription("");

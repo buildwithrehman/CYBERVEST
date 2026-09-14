@@ -118,8 +118,16 @@ function FairPageContent() {
         const currentVals = getValues();
         reset({
           ...currentVals,
-          tef: data.tef.value,
-          susceptibility: data.susceptibility.value
+          tef: {
+            min_val: data.tef.min_val,
+            likely_val: data.tef.likely_val,
+            max_val: data.tef.max_val
+          },
+          susceptibility: {
+            min_val: data.susceptibility.min_val,
+            likely_val: data.susceptibility.likely_val,
+            max_val: data.susceptibility.max_val
+          }
         });
       } else {
         setTelemetryError(data.warnings?.join(" ") || "Insufficient evidence.");

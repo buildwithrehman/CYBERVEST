@@ -47,7 +47,7 @@ export default function ProfilePage() {
     <div className="max-w-3xl mx-auto p-6 md:p-8">
       <div className="flex items-center gap-3 mb-6">
         <UserIcon className="w-8 h-8 text-slate-700" />
-        <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">My Profile</h1>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">

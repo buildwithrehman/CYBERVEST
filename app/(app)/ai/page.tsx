@@ -76,7 +76,7 @@ export default function AIRiskAssistantPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4 shrink-0">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl text-[#0F3F2E] font-bold tracking-tight">AI Risk Assistant</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">AI Risk Assistant</h1>
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
               <Bot className="w-3.5 h-3.5" />
               <span>BETA / Decision Support</span>

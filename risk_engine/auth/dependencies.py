@@ -38,7 +38,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     except HTTPException:
         raise
     except Exception as e:
-        print(f"DEBUG AUTH ERROR: {type(e).__name__}: {str(e)}")
+        print(f"DEBUG AUTH ERROR: {type(e).__name__}")
         # Catch IndexError, pydantic ValidationError, auth errors, etc.
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication credentials")
         

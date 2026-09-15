@@ -138,7 +138,7 @@ async def execute_tool(query: str, user: AuthenticatedUser) -> tuple[str, Dict[s
             data["limitations"] = "The input is a demonstration asset profile. The result is an intelligence signal from the certified ML model. It does not automatically become FAIR TEF, susceptibility, LEF, or EAL."
             return "ML Intelligence Engine (Demonstration Inference)", data
         except Exception as e:
-            return "Unsupported", {"reason": f"ML_SERVICE_ERROR: {str(e)}"}
+            return "Unsupported", {"reason": "ML_SERVICE_ERROR"}
         
     else:
         return "Unsupported", {}

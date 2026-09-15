@@ -47,7 +47,7 @@ async def run_ml_predict(
     try:
         load_ml_artifacts()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load certified model artifact: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to load certified model artifact.")
 
     client = _get_db()
     
@@ -93,7 +93,7 @@ async def run_ml_predict(
         probs = _model.predict_proba(X_proc)
         prob = float(probs[0, 1])
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Inference failed during feature transformation: {str(e)}")
+        raise HTTPException(status_code=400, detail="Inference failed during feature transformation. Invalid input data.")
         
     threshold = float(_metadata.get("threshold", 0.5))
     classification = "Elevated Signal" if prob >= threshold else "Baseline Signal"

@@ -15,6 +15,12 @@ import os
 cors_origins_str = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
 allowed_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+import logging
+
+logger = logging.getLogger("cybervest.api")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -22,6 +28,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled server exception: {type(exc).__name__}", exc_info=False)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected internal server error occurred."}
+    )
 
 @app.get("/health")
 def health_check():

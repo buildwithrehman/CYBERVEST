@@ -39,7 +39,26 @@ export default function EvidencePage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !title) return;
+    if (!file || !title) {
+      setError("File and title are required.");
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError("File size must be less than 20MB.");
+      return;
+    }
+
+    const allowedTypes = [
+      'application/pdf', 'text/csv', 'text/plain', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+      'application/msword', 'image/jpeg', 'image/png'
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      setError("Unsupported file type. Allowed: PDF, CSV, TXT, DOCX, JPEG, PNG.");
+      return;
+    }
     
     setUploading(true);
     setError(null);

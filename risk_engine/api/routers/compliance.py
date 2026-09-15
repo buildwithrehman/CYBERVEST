@@ -105,19 +105,18 @@ async def list_gaps(user: AuthenticatedUser = Depends(require_read_access())):
     
     controls_res = client.table("organization_controls").select(
         "id, status, framework_controls(control_code, title, framework_id)"
-    ).eq("organization_id", org_id).execute()
+    ).eq("organization_id", org_id).in_("status", ["NOT_IMPLEMENTED", "PARTIALLY_IMPLEMENTED"]).execute()
     
     gaps = []
     for c in controls_res.data:
-        if c["status"] in ("NOT_IMPLEMENTED", "PARTIALLY_IMPLEMENTED"):
-            gaps.append({
-                "organization_control_id": c["id"],
-                "framework_id": c["framework_controls"]["framework_id"],
-                "control_code": c["framework_controls"]["control_code"],
-                "title": c["framework_controls"]["title"],
-                "status": c["status"],
-                "has_gap": True
-            })
+        gaps.append({
+            "organization_control_id": c["id"],
+            "framework_id": c["framework_controls"]["framework_id"],
+            "control_code": c["framework_controls"]["control_code"],
+            "title": c["framework_controls"]["title"],
+            "status": c["status"],
+            "has_gap": True
+        })
     return gaps
 
 @router.get("/findings")

@@ -128,24 +128,19 @@ async def run_fair_scenario(
 async def get_latest_fair_result(user: AuthenticatedUser = Depends(require_read_access())):
     client = get_supabase_client()
     
-    # Find all legitimate scenarios for the organization
-    scenarios_res = client.table("fair_scenarios").select("id, name").eq("organization_id", user.organization_id).execute()
-    if not scenarios_res.data:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="No FAIR results found")
-        
-    scenario_ids = [s["id"] for s in scenarios_res.data]
-    scenario_map = {s["id"]: s["name"] for s in scenarios_res.data}
+    # Find latest result directly through an inner join on fair_scenarios to filter by organization
+    res = client.table("fair_results").select("*, fair_scenarios!inner(id, name, organization_id)").eq("fair_scenarios.organization_id", user.organization_id).order("created_at", desc=True).limit(1).execute()
     
-    res = client.table("fair_results").select("*").in_("scenario_id", scenario_ids).order("created_at", desc=True).limit(1).execute()
     if not res.data:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No FAIR results found")
     
     db_row = res.data[0]
+    scenario_info = db_row.get("fair_scenarios", {})
+    
     return {
         "scenario_id": db_row.get("scenario_id"),
-        "scenario_name": scenario_map.get(db_row.get("scenario_id"), "Unknown Scenario"),
+        "scenario_name": scenario_info.get("name", "Unknown Scenario"),
         "tef_mean": db_row.get("tef", 0),
         "susceptibility_mean": db_row.get("susceptibility", 0),
         "lef_mean": db_row.get("lef", 0),

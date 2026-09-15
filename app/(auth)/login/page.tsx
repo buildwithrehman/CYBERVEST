@@ -97,7 +97,7 @@ export default function LoginPage() {
   return (
     <main className="flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto min-h-screen text-[#111827]">
       {/* LEFT SIDE: CYBERVEST Brand Intelligence Canvas */}
-      <section className="lg:w-[48%] xl:w-[45%] bg-[#F5F8F6] border-b lg:border-b-0 lg:border-r border-surface-border p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+      <section className="hidden lg:flex lg:w-[48%] xl:w-[45%] bg-[#F5F8F6] border-b lg:border-b-0 lg:border-r border-surface-border p-8 sm:p-12 lg:p-16 flex-col justify-between relative overflow-hidden">
         
         {/* Abstract Background SVG */}
         <div className="absolute inset-0 pointer-events-none opacity-65 flex items-center justify-center">
@@ -196,7 +196,7 @@ export default function LoginPage() {
             <svg className="w-4 h-4 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
             <span>SOC 2 Type II &amp; ISO 27001 Certified</span>
           </div>
-          <span className="text-gray-400">v2.4.8 Enterprise</span>
+          <span className="text-gray-500">v2.4.8 Enterprise</span>
         </div>
       </section>
 
@@ -285,7 +285,7 @@ export default function LoginPage() {
                       type="button" 
                       onClick={() => setShowPassword(!showPassword)} 
                       aria-label="Toggle password visibility" 
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 hover:text-gray-600 focus:outline-none"
                     >
                       {showPassword ? (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -329,7 +329,7 @@ export default function LoginPage() {
                     <div className="w-full border-t border-surface-border"></div>
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="px-3 bg-white text-gray-400 font-medium tracking-wider uppercase">OR</span>
+                    <span className="px-3 bg-white text-gray-500 font-medium tracking-wider uppercase">OR</span>
                   </div>
                 </div>
 
@@ -410,7 +410,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <div className="mt-6 pt-5 border-t border-surface-border flex items-center justify-center text-xs text-gray-400">
+              <div className="mt-6 pt-5 border-t border-surface-border flex items-center justify-center text-xs text-gray-500">
                 <span>Enterprise Session Protection • 256-bit TLS</span>
               </div>
             </div>
@@ -418,7 +418,7 @@ export default function LoginPage() {
         </div>
 
         {/* Global Footer */}
-        <footer className="w-full py-3 text-center text-xs text-gray-400 mt-auto pt-6">
+        <footer className="w-full py-3 text-center text-xs text-gray-500 mt-auto pt-6">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 lg:gap-4">
             <p>© 2025 CYBERVEST Intelligence Inc. All rights reserved.</p>
             <div className="flex items-center gap-2 sm:gap-4">

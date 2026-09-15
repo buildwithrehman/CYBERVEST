@@ -39,7 +39,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [router, pathname]);
+  }, [router]);
 
   if (isAuthenticated === null) {
     return <LoadingState message="Authenticating..." />;

@@ -1,5 +1,7 @@
 import { ImageResponse } from 'next/og'
 
+export const runtime = 'nodejs'
+
 export const alt = 'CYBERVEST - Cyber Risk Quantification'
 export const size = {
   width: 1200,

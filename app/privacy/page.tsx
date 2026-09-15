@@ -112,7 +112,7 @@ export default function PrivacyPolicyPage() {
         <div className="flex items-center justify-center gap-4 mt-2">
           <Link href="/login" className="hover:text-slate-900 transition-colors">Sign In</Link>
           <span>•</span>
-          <a href="#" className="hover:text-slate-900 transition-colors">Terms of Service</a>
+          <a href="/terms" className="hover:text-slate-900 transition-colors">Terms of Service</a>
         </div>
       </footer>
     </div>

@@ -424,7 +424,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-2 sm:gap-4">
               <a href="/privacy" className="hover:text-gray-600 transition-colors">Privacy Policy</a>
               <span className="hidden sm:inline">•</span>
-              <a href="#" className="hover:text-gray-600 transition-colors">Terms of Service</a>
+              <a href="/terms" className="hover:text-gray-600 transition-colors">Terms of Service</a>
               <span className="hidden sm:inline">•</span>
               <a href="#" className="hover:text-gray-600 transition-colors">Security Whitepaper</a>
             </div>

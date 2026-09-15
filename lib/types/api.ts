@@ -253,6 +253,7 @@ export interface ReportMetadata {
 export interface ReportContent {
   controls?: ReportControl[];
   findings?: ReportFinding[];
+  [key: string]: any;
 }
 
 export interface Asset {

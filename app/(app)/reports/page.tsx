@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { supabase } from "@/lib/auth/supabase";
 import { generateReport, downloadReportPdf } from "@/lib/api/reports";
 import { ReportResponse } from "@/lib/types/api";
+import { fetchApi } from "@/lib/api/client";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/States";
 import { FileText, Download, X, AlertTriangle, Printer, BarChart3, Shield, TrendingUp, CheckSquare } from "lucide-react";
 
@@ -22,7 +23,7 @@ export default function ReportsPage() {
       if (!session) {
         throw new Error("Your session has expired. Please sign in again.");
       }
-      const blob = await downloadReportPdf(session.access_token, { report_type: preview.metadata.report_type === "Framework / Evidence Report" ? "FRAMEWORK_EVIDENCE" : "UNKNOWN" });
+      const blob = await downloadReportPdf(session.access_token, { report_type: preview.metadata.report_type === "Comprehensive Cyber Risk & Compliance Report" ? "FRAMEWORK_EVIDENCE" : "UNKNOWN" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -50,6 +51,21 @@ export default function ReportsPage() {
       }
       
       const data = await generateReport(session.access_token, { report_type: reportType });
+      
+      // Fetch extra data for comprehensive reporting
+      const [fairData, optData, assetsData, evidenceRes] = await Promise.allSettled([
+        fetchApi("/api/fair/latest").catch(() => null),
+        fetchApi("/api/optimization/latest").catch(() => null),
+        fetchApi("/api/risk-explorer/").catch(() => null),
+        supabase.from("evidence").select("*")
+      ]);
+      
+      data.content.fair = fairData.status === "fulfilled" ? fairData.value : null;
+      data.content.optimization = optData.status === "fulfilled" ? optData.value : null;
+      data.content.assets = assetsData.status === "fulfilled" ? assetsData.value : null;
+      data.content.evidence = evidenceRes.status === "fulfilled" ? evidenceRes.value.data : null;
+
+      data.metadata.report_type = "Comprehensive Cyber Risk & Compliance Report";
       setPreview(data);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
@@ -61,7 +77,7 @@ export default function ReportsPage() {
 
   
   const handleDownloadCsv = () => {
-    if (!preview || preview.metadata.report_type !== "Framework / Evidence Report") return;
+    if (!preview || preview.metadata.report_type !== "Comprehensive Cyber Risk & Compliance Report") return;
     const controls = preview.content.controls || [];
     const headers = ["Framework", "Control Code", "Title", "Status"];
     const rows = controls.map((c: any) => [
@@ -189,15 +205,15 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Framework / Evidence Report - AVAILABLE */}
+          {/* Comprehensive Report */}
           <div className="bg-white p-6 border border-[#0F3F2E]/20 rounded-lg shadow-sm flex flex-col justify-between relative overflow-hidden">
             <div className="absolute top-0 right-0 w-2 h-full bg-[#0F3F2E]"></div>
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <CheckSquare className="w-5 h-5 text-[#0F3F2E]" />
-                <h3 className="text-lg font-semibold text-slate-900">Framework / Evidence</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Comprehensive Report</h3>
               </div>
-              <p className="text-sm text-slate-500 mb-4">Controls, evidence and identified gaps.</p>
+              <p className="text-sm text-slate-500 mb-4">Executive Risk, FAIR metrics, Assets, Compliance, Evidence and open findings.</p>
             </div>
             <div>
               <button 
@@ -275,10 +291,91 @@ export default function ReportsPage() {
                 </div>
               )}
 
-              {preview.metadata.report_type === "Framework / Evidence Report" && (
+              {preview.metadata.report_type === "Comprehensive Cyber Risk & Compliance Report" && (
                 <div className="space-y-8">
+                  {/* 1. Executive Risk & FAIR */}
                   <section>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-200 pb-2">1. Compliance Overview</h3>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-200 pb-2">1. Executive Risk & FAIR Metrics</h3>
+                    {!preview.content.fair ? (
+                      <p className="text-sm text-slate-500 italic">No FAIR financial risk data available in the current scope.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 border border-slate-200 rounded bg-white">
+                          <div className="text-sm text-slate-500 mb-1">Expected Annual Loss (EAL)</div>
+                          <div className="text-xl font-bold text-slate-900">${preview.content.fair.expected_annual_loss_mean.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                        </div>
+                        <div className="p-4 border border-slate-200 rounded bg-white">
+                          <div className="text-sm text-slate-500 mb-1">90th Percentile Exposure</div>
+                          <div className="text-xl font-bold text-red-700">${preview.content.fair.expected_annual_loss_p90.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+
+                  {/* 2. Asset Exposure */}
+                  <section>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-200 pb-2">2. Risk Explorer & Asset Telemetry</h3>
+                    {!preview.content.assets || preview.content.assets.length === 0 ? (
+                      <p className="text-sm text-slate-500 italic">No asset telemetry data available.</p>
+                    ) : (
+                      <div className="overflow-x-auto rounded border border-slate-200 w-full min-w-0">
+                        <table className="w-full text-left text-sm text-slate-700 min-w-max">
+                          <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase">
+                            <tr>
+                              <th className="px-4 py-3">Asset</th>
+                              <th className="px-4 py-3">Criticality</th>
+                              <th className="px-4 py-3 text-right">Critical Vulns</th>
+                              <th className="px-4 py-3 text-right">Max EPSS</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {preview.content.assets.slice(0, 10).map((a: any) => (
+                              <tr key={a.id}>
+                                <td className="px-4 py-3 font-medium">{a.name}</td>
+                                <td className="px-4 py-3 capitalize">{a.criticality || 'Unspecified'}</td>
+                                <td className="px-4 py-3 text-right">{a.vuln_critical_count || 0}</td>
+                                <td className="px-4 py-3 text-right">{a.epss_max ? (a.epss_max * 100).toFixed(1) + '%' : '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {preview.content.assets.length > 10 && (
+                          <div className="p-3 text-xs text-center text-slate-500 bg-slate-50 border-t border-slate-200">
+                            Showing top 10 of {preview.content.assets.length} assets
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* 3. Investment Optimization */}
+                  <section>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-200 pb-2">3. Investment & Optimization Strategy</h3>
+                    {!preview.content.optimization ? (
+                      <p className="text-sm text-slate-500 italic">No investment optimization scenarios have been generated.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-4 border border-slate-200 rounded bg-emerald-50">
+                            <div className="text-sm text-emerald-700 mb-1">Optimized Risk Reduction</div>
+                            <div className="text-xl font-bold text-emerald-800">${preview.content.optimization.total_risk_reduction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                          </div>
+                          <div className="p-4 border border-slate-200 rounded bg-blue-50">
+                            <div className="text-sm text-blue-700 mb-1">Total Investment Cost</div>
+                            <div className="text-xl font-bold text-blue-800">${preview.content.optimization.total_cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-600">
+                          <strong>Selected Controls: </strong>
+                          {preview.content.optimization.selected_controls.length} controls recommended to maximize Return on Security Investment (ROSI).
+                        </p>
+                      </div>
+                    )}
+                  </section>
+
+                  {/* 4. Compliance */}
+                  <section>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-200 pb-2">4. Compliance Overview</h3>
                     <p className="text-sm text-slate-600 mb-4">
                       This section outlines the current status of organizational controls mapped to target frameworks. 
                     </p>
@@ -319,12 +416,12 @@ export default function ReportsPage() {
                   </section>
 
                   <section>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-200 pb-2">2. Identified Findings</h3>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-200 pb-2">5. Identified Findings</h3>
                     {(preview.content.findings || []).length === 0 ? (
                       <p className="text-sm text-slate-500 italic">No open findings reported in the current scope.</p>
                     ) : (
                       <div className="grid gap-4">
-                        {(preview.content.findings || []).map((f) => (
+                        {(preview.content.findings || []).map((f: any) => (
                           <div key={f.id} className="p-4 border border-slate-200 rounded bg-white">
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-semibold text-slate-900 text-sm">{f.title}</h4>
@@ -338,6 +435,36 @@ export default function ReportsPage() {
                             <div className="text-xs text-slate-500">Status: <span className="font-medium text-slate-700">{f.status}</span></div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 border-b border-slate-200 pb-2">6. Evidence Log</h3>
+                    {!preview.content.evidence || preview.content.evidence.length === 0 ? (
+                      <p className="text-sm text-slate-500 italic">No evidence records uploaded.</p>
+                    ) : (
+                      <div className="overflow-x-auto rounded border border-slate-200 w-full min-w-0">
+                        <table className="w-full text-left text-sm text-slate-700 min-w-max">
+                          <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase">
+                            <tr>
+                              <th className="px-4 py-3">Title</th>
+                              <th className="px-4 py-3">Type</th>
+                              <th className="px-4 py-3">Source</th>
+                              <th className="px-4 py-3">Uploaded</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {preview.content.evidence.map((ev: any) => (
+                              <tr key={ev.id}>
+                                <td className="px-4 py-3 font-medium">{ev.title}</td>
+                                <td className="px-4 py-3 capitalize">{(ev.evidence_type || 'FILE').split('/')[1] || ev.evidence_type || 'File'}</td>
+                                <td className="px-4 py-3 capitalize">{ev.source || 'Manual'}</td>
+                                <td className="px-4 py-3">{new Date(ev.created_at).toLocaleDateString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </section>

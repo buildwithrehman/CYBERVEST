@@ -155,6 +155,8 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
             headers={"Authorization": f"Bearer {api_key}"},
             json={
                 "model": "gpt-4o-mini",
+                "max_tokens": 500,
+                "temperature": 0.1,
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -206,6 +208,9 @@ CRITICAL RULES:
 6. ML incident likelihood is an intelligence signal. It MUST NOT automatically become FAIR TEF, FAIR susceptibility, LEF, EAL, or percentile losses."""
 
     user_prompt = f"User Query: {request.query}\n\nVerified Backend Data:\n{json.dumps(data, indent=2)}\n\nPlease explain this data to the user answering their query."
+    
+    if len(user_prompt) > 12000:
+        user_prompt = user_prompt[:12000] + "\n...[DATA TRUNCATED DUE TO SIZE]...\n\nPlease explain this data to the user answering their query."
     
     explanation = call_llm(system_prompt, user_prompt)
     

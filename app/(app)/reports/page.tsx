@@ -302,11 +302,11 @@ export default function ReportsPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 border border-slate-200 rounded bg-white">
                           <div className="text-sm text-slate-500 mb-1">Expected Annual Loss (EAL)</div>
-                          <div className="text-xl font-bold text-slate-900">${preview.content.fair.expected_annual_loss_mean.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                          <div className="text-xl font-bold text-slate-900">${(preview.content.fair.eal || preview.content.fair.total_loss_mean || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                         </div>
                         <div className="p-4 border border-slate-200 rounded bg-white">
                           <div className="text-sm text-slate-500 mb-1">90th Percentile Exposure</div>
-                          <div className="text-xl font-bold text-red-700">${preview.content.fair.expected_annual_loss_p90.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                          <div className="text-xl font-bold text-red-700">${(preview.content.fair.p90 || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                         </div>
                       </div>
                     )}
@@ -358,16 +358,16 @@ export default function ReportsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="p-4 border border-slate-200 rounded bg-emerald-50">
                             <div className="text-sm text-emerald-700 mb-1">Optimized Risk Reduction</div>
-                            <div className="text-xl font-bold text-emerald-800">${preview.content.optimization.total_risk_reduction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                            <div className="text-xl font-bold text-emerald-800">${(preview.content.optimization.absolute_risk_reduction || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                           </div>
                           <div className="p-4 border border-slate-200 rounded bg-blue-50">
                             <div className="text-sm text-blue-700 mb-1">Total Investment Cost</div>
-                            <div className="text-xl font-bold text-blue-800">${preview.content.optimization.total_cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                            <div className="text-xl font-bold text-blue-800">${(preview.content.optimization.total_investment || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                           </div>
                         </div>
                         <p className="text-sm text-slate-600">
                           <strong>Selected Controls: </strong>
-                          {preview.content.optimization.selected_controls.length} controls recommended to maximize Return on Security Investment (ROSI).
+                          {(preview.content.optimization.selected_mitigations || []).length} controls recommended to maximize Return on Security Investment (ROSI).
                         </p>
                       </div>
                     )}

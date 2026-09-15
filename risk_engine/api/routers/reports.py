@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from ...auth.dependencies import require_read_access, get_current_user
 from ...auth.models import AuthenticatedUser
@@ -15,7 +15,7 @@ def get_supabase_client():
     return create_client(url, key)
 
 class ReportRequest(BaseModel):
-    report_type: str
+    report_type: str = Field(..., max_length=100)
     parameters: Optional[Dict[str, Any]] = None
 
 class ReportResponse(BaseModel):

@@ -30,11 +30,11 @@ class OptimizationConstraints(BaseModel):
     # We could add more constraints here if needed
 
 class OptimizationRequest(BaseModel):
-    organization_id: str
-    budget: float
-    mitigations: List[Mitigation]
+    organization_id: str = Field(..., max_length=100)
+    budget: float = Field(..., ge=0)
+    mitigations: List[Mitigation] = Field(..., max_length=100)
     constraints: Optional[OptimizationConstraints] = None
-    baseline_scenario: Dict[str, Any]  # Should be easily convertible to FAIRScenarioInput
+    baseline_scenario: Dict[str, Any]
 
 class SelectedMitigationDetail(BaseModel):
     id: str

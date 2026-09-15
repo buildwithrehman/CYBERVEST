@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import os
 import json
 import re
@@ -16,7 +16,7 @@ from ...services.audit import log_audit_event
 router = APIRouter()
 
 class AIQuery(BaseModel):
-    query: str
+    query: str = Field(..., max_length=2000)
 
 class AIResponse(BaseModel):
     status: str

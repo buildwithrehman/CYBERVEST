@@ -18,10 +18,10 @@ class SusceptibilityDistribution(PERTDistribution):
     max_val: float = Field(..., ge=0, le=1)
 
 class FAIRScenarioInput(BaseModel):
-    scenario_id: str
-    scenario_name: str
-    organization_id: Optional[str] = None
-    asset_id: Optional[str] = None
+    scenario_id: str = Field(..., max_length=100)
+    scenario_name: str = Field(..., max_length=255)
+    organization_id: Optional[str] = Field(None, max_length=100)
+    asset_id: Optional[str] = Field(None, max_length=100)
     
     tef: PERTDistribution
     susceptibility: SusceptibilityDistribution
@@ -31,13 +31,13 @@ class FAIRScenarioInput(BaseModel):
     regulatory_loss: PERTDistribution
     reputation_loss: PERTDistribution
     
-    simulation_count: int = Field(default=10000, ge=1)
+    simulation_count: int = Field(default=10000, ge=1, le=50000)
     seed: Optional[int] = None
     
-    source_type: str = "synthetic"
-    confidence: str = "medium"
+    source_type: str = Field(default="synthetic", max_length=50)
+    confidence: str = Field(default="medium", max_length=50)
     assumptions: Dict[str, Any] = Field(default_factory=dict)
-    probability_distribution: str = "PERT"
+    probability_distribution: str = Field(default="PERT", max_length=50)
     
 class RiskDriver(BaseModel):
     name: str

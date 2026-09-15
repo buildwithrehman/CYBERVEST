@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime, timedelta
 import joblib
@@ -15,7 +15,7 @@ from ...api.routers.assets import _get_db
 router = APIRouter()
 
 class MLPredictRequest(BaseModel):
-    asset_id: str
+    asset_id: str = Field(..., max_length=100)
 
 MODEL_DIR = Path("risk_engine/ml/models/incident_likelihood")
 if not MODEL_DIR.exists():

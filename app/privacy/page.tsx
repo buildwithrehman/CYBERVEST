@@ -34,7 +34,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-xl font-semibold text-slate-900 mb-3 border-b border-slate-100 pb-2">1. Introduction</h2>
               <p>
-                Welcome to CYBERVEST. This Privacy Policy explains how [Company Legal Name Placeholder] ("we", "us", or "our") collects, uses, processes, and protects your information when you use the CYBERVEST application and related services.
+                Welcome to CYBERVEST. This Privacy Policy explains how [Company Legal Name Placeholder] (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, processes, and protects your information when you use the CYBERVEST application and related services.
               </p>
             </section>
 
@@ -73,7 +73,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-xl font-semibold text-slate-900 mb-3 border-b border-slate-100 pb-2">5. Security Measures</h2>
               <p>
-                We implement industry-standard security measures, including but not limited to TLS encryption in transit, strict RBAC, and database-level RLS to protect your organization's sensitive risk data and telemetry against unauthorized access.
+                We implement industry-standard security measures, including but not limited to TLS encryption in transit, strict RBAC, and database-level RLS to protect your organization&apos;s sensitive risk data and telemetry against unauthorized access.
               </p>
             </section>
 

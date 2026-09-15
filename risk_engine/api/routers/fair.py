@@ -27,6 +27,9 @@ async def run_fair_scenario(
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Cross-tenant access forbidden.")
         
+    from ...utils.idempotency import check_duplicate_request
+    check_duplicate_request(request.model_dump_json(), ttl_seconds=5)
+        
     result = await run_in_threadpool(calculate_fair, request)
     
     if request.scenario_id == "demo_baseline" or str(request.scenario_id).startswith("fair_whatif"):

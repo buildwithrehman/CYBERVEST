@@ -28,6 +28,9 @@ async def generate_report(
     request: ReportRequest,
     user: AuthenticatedUser = Depends(require_read_access())
 ):
+    from ...utils.idempotency import check_duplicate_request
+    check_duplicate_request(request.model_dump_json(), ttl_seconds=5)
+
     client = get_supabase_client()
     org_id = user.organization_id
     
@@ -89,6 +92,9 @@ async def generate_pdf(
     request: ReportRequest,
     user: AuthenticatedUser = Depends(require_read_access())
 ):
+    from ...utils.idempotency import check_duplicate_request
+    check_duplicate_request(request.model_dump_json(), ttl_seconds=5)
+
     client = get_supabase_client()
     org_id = user.organization_id
     

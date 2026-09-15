@@ -24,6 +24,9 @@ async def run_optimization(
     if str(request.organization_id) != user.organization_id and str(request.organization_id) != "00000000-0000-0000-0000-000000000000":
         raise HTTPException(status_code=403, detail="Cross-tenant access forbidden.")
         
+    from ...utils.idempotency import check_duplicate_request
+    check_duplicate_request(request.model_dump_json(), ttl_seconds=5)
+        
     result = optimize_portfolio(request)
     
     log_audit_event(

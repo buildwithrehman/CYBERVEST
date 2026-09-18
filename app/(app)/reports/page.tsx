@@ -6,9 +6,71 @@ import { generateReport, downloadReportPdf } from "@/lib/api/reports";
 import { ReportResponse } from "@/lib/types/api";
 import { fetchApi } from "@/lib/api/client";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/States";
-import { FileText, Download, X, AlertTriangle, Printer, BarChart3, Shield, TrendingUp, CheckSquare } from "lucide-react";
+import { FileText, Download, X, AlertTriangle, Printer, BarChart3, Shield, TrendingUp, CheckSquare, CheckCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { FAIRResultOutput, OptimizationResponse, RiskAsset } from "@/lib/types/api";
+
+function formatINR(val: number) {
+  if (val >= 10000000) {
+    return `₹${(val / 10000000).toFixed(2)}Cr`;
+  }
+  if (val >= 100000) {
+    return `₹${(val / 100000).toFixed(2)}L`;
+  }
+  return `₹${val.toLocaleString("en-IN")}`;
+}
 
 export default function ReportsPage() {
+  const { data: fairData, isLoading: fairLoading } = useQuery({
+    queryKey: ["fair_latest"],
+    queryFn: () => fetchApi<FAIRResultOutput>("/api/fair/latest"),
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+
+  const { data: optResult, isLoading: optLoading } = useQuery({
+    queryKey: ["opt_latest"],
+    queryFn: () => fetchApi<OptimizationResponse>("/api/optimization/latest"),
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+
+  const { data: riskExplorerData, isLoading: riskLoading } = useQuery({
+    queryKey: ["riskExplorer"],
+    queryFn: () => fetchApi<RiskAsset[]>("/api/risk-explorer/"),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const assetCount = riskExplorerData?.length || 0;
+  const criticalVulns = riskExplorerData?.reduce((acc, a) => acc + (a.vuln_critical_count || 0), 0) || 0;
+  const highVulns = riskExplorerData?.reduce((acc, a) => acc + (a.vuln_high_count || 0), 0) || 0;
+  const incidentCount = riskExplorerData?.reduce((acc, a) => acc + (a.incident_count || 0), 0) || 0;
+
+  const handleDownloadExecutive = async () => {
+    setIsDownloading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+      const blob = await downloadReportPdf(session.access_token, { report_type: "EXECUTIVE_RISK" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "CYBERVEST_Executive_Brief.pdf");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      setError(errorMessage);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const [loading, setLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,82 +187,152 @@ export default function ReportsPage() {
       {!loading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 print:hidden">
           
-          {/* Executive Risk Report - UNAVAILABLE */}
-          <div className="bg-white p-6 border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between opacity-75">
+          {/* Executive Risk Report */}
+          <div className="bg-white p-6 border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <BarChart3 className="w-5 h-5 text-slate-400" />
+                <BarChart3 className="w-5 h-5 text-[#0F3F2E]" />
                 <h3 className="text-lg font-semibold text-slate-900">Executive Risk Report</h3>
               </div>
               <p className="text-sm text-slate-500 mb-4">Financial exposure and key risk decisions.</p>
+              
+              {fairLoading ? (
+                <div className="text-sm text-slate-400 mb-4">Loading data...</div>
+              ) : fairData ? (
+                <div className="mb-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Expected Loss (EAL):</span>
+                    <span className="font-semibold text-slate-900">{formatINR(fairData.eal || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">P90 Exposure:</span>
+                    <span className="font-semibold text-red-600">{formatINR(fairData.p90 || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Status:</span>
+                    <span className="font-medium text-emerald-600">Calculated</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 text-amber-700 text-xs font-medium px-2 py-1 rounded mb-4 flex items-center gap-1 w-fit border border-amber-200">
+                  <AlertTriangle className="w-3 h-3" />
+                  Run FAIR analysis first
+                </div>
+              )}
             </div>
             <div>
-              <div className="bg-amber-50 text-amber-700 text-xs font-medium px-2 py-1 rounded mb-3 flex items-center gap-1 w-fit border border-amber-200">
-                <AlertTriangle className="w-3 h-3" />
-                Limited data available
-              </div>
-              <button disabled className="w-full py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded cursor-not-allowed border border-slate-200">
-                Data unavailable
-              </button>
+              {fairData ? (
+                <button 
+                  onClick={handleDownloadExecutive}
+                  disabled={isDownloading}
+                  className="w-full py-2 bg-[#0F3F2E] text-white text-sm font-medium rounded hover:bg-[#0a2e22] transition-colors"
+                >
+                  {isDownloading ? "Generating PDF..." : "Download PDF"}
+                </button>
+              ) : (
+                <button disabled className="w-full py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded cursor-not-allowed border border-slate-200">
+                  Report Unavailable
+                </button>
+              )}
             </div>
           </div>
 
-          {/* CISO Risk Report - UNAVAILABLE */}
-          <div className="bg-white p-6 border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between opacity-75">
+          {/* CISO Risk Report */}
+          <div className="bg-white p-6 border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <Shield className="w-5 h-5 text-slate-400" />
+                <Shield className="w-5 h-5 text-[#0F3F2E]" />
                 <h3 className="text-lg font-semibold text-slate-900">CISO Risk Report</h3>
               </div>
               <p className="text-sm text-slate-500 mb-4">Technical risk and FAIR analysis.</p>
+              
+              {riskLoading ? (
+                <div className="text-sm text-slate-400 mb-4">Loading data...</div>
+              ) : riskExplorerData && assetCount > 0 ? (
+                <div className="mb-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Assets Analyzed:</span>
+                    <span className="font-semibold text-slate-900">{assetCount}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Crit/High Vulns:</span>
+                    <span className="font-semibold text-red-600">{criticalVulns} / {highVulns}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Recent Incidents:</span>
+                    <span className="font-semibold text-slate-900">{incidentCount}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 text-amber-700 text-xs font-medium px-2 py-1 rounded mb-4 flex items-center gap-1 w-fit border border-amber-200">
+                  <AlertTriangle className="w-3 h-3" />
+                  No assets found
+                </div>
+              )}
             </div>
             <div>
-              <div className="bg-amber-50 text-amber-700 text-xs font-medium px-2 py-1 rounded mb-3 flex items-center gap-1 w-fit border border-amber-200">
-                <AlertTriangle className="w-3 h-3" />
-                Limited data available
-              </div>
               <button disabled className="w-full py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded cursor-not-allowed border border-slate-200">
-                Data unavailable
+                Detailed PDF generation unavailable
               </button>
             </div>
           </div>
 
-          {/* Investment Report - UNAVAILABLE */}
-          <div className="bg-white p-6 border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between opacity-75">
+          {/* Investment Report */}
+          <div className="bg-white p-6 border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <TrendingUp className="w-5 h-5 text-slate-400" />
+                <TrendingUp className="w-5 h-5 text-[#0F3F2E]" />
                 <h3 className="text-lg font-semibold text-slate-900">Investment Report</h3>
               </div>
               <p className="text-sm text-slate-500 mb-4">Budget allocation and risk reduction.</p>
+
+              {optLoading ? (
+                <div className="text-sm text-slate-400 mb-4">Loading data...</div>
+              ) : optResult ? (
+                <div className="mb-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Budget:</span>
+                    <span className="font-semibold text-slate-900">{formatINR(optResult.budget || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Investment:</span>
+                    <span className="font-semibold text-blue-600">{formatINR(optResult.total_investment || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Risk Reduction:</span>
+                    <span className="font-semibold text-emerald-600">{formatINR(optResult.absolute_risk_reduction || 0)}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 text-amber-700 text-xs font-medium px-2 py-1 rounded mb-4 flex items-center gap-1 w-fit border border-amber-200">
+                  <AlertTriangle className="w-3 h-3" />
+                  Run Optimizer first
+                </div>
+              )}
             </div>
             <div>
-              <div className="bg-amber-50 text-amber-700 text-xs font-medium px-2 py-1 rounded mb-3 flex items-center gap-1 w-fit border border-amber-200">
-                <AlertTriangle className="w-3 h-3" />
-                Limited data available
-              </div>
               <button disabled className="w-full py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded cursor-not-allowed border border-slate-200">
-                Data unavailable
+                Detailed PDF generation unavailable
               </button>
             </div>
           </div>
 
-          {/* Scenario Report - UNAVAILABLE */}
-          <div className="bg-white p-6 border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between opacity-75">
+          {/* Scenario Report */}
+          <div className="bg-white p-6 border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <FileText className="w-5 h-5 text-slate-400" />
+                <FileText className="w-5 h-5 text-[#0F3F2E]" />
                 <h3 className="text-lg font-semibold text-slate-900">Scenario Report</h3>
               </div>
               <p className="text-sm text-slate-500 mb-4">Before/after risk analysis.</p>
+              
+              <div className="bg-slate-50 text-slate-600 text-xs font-medium px-2 py-1 rounded mb-4 flex items-center gap-1 w-fit border border-slate-200">
+                Data unavailable
+              </div>
             </div>
             <div>
-              <div className="bg-amber-50 text-amber-700 text-xs font-medium px-2 py-1 rounded mb-3 flex items-center gap-1 w-fit border border-amber-200">
-                <AlertTriangle className="w-3 h-3" />
-                Limited data available
-              </div>
               <button disabled className="w-full py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded cursor-not-allowed border border-slate-200">
-                Data unavailable
+                Run a What-If Scenario to generate this report
               </button>
             </div>
           </div>

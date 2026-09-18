@@ -5,13 +5,15 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { NAVIGATION_CONFIG } from "./NavigationConfig";
 
+import { Logo } from "@/components/ui/Logo";
+
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
     <aside className="hidden xl:flex w-[240px] flex-col bg-forest text-white h-screen border-r border-forest-800 flex-shrink-0">
-      <div className="h-16 flex items-center px-6 font-bold text-lg tracking-tight">
-        CYBERVEST
+      <div className="h-20 flex items-center px-5 border-b border-forest-800">
+        <Logo width={160} height={48} href="/dashboard" />
       </div>
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
         {NAVIGATION_CONFIG.map((group) => (

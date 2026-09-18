@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/auth/supabase";
 import { Loader2 } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -126,17 +127,8 @@ export default function LoginPage() {
 
         {/* Top Brand Mark Header */}
         <div className="relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-800 flex items-center justify-center text-white shadow-sm ring-4 ring-brand-100/60">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                <path d="M9 12l2 2 4-4" strokeWidth="2.4"></path>
-              </svg>
-            </div>
-            <div>
-              <span className="font-bold text-lg tracking-tight text-[#0F3F2E]">CYBERVEST</span>
-              <span className="block text-[11px] font-medium tracking-wider text-gray-500 uppercase -mt-1">Financial Intelligence</span>
-            </div>
+          <div className="flex items-center">
+            <Logo width={220} height={70} href="" className="mb-2" />
           </div>
         </div>
 
@@ -210,11 +202,8 @@ export default function LoginPage() {
               
               <div className="mb-7 text-left">
                 {/* Mobile-only logo display */}
-                <div className="flex lg:hidden items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-brand-800 flex items-center justify-center text-white">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                  </div>
-                  <span className="font-bold text-base text-brand-800">CYBERVEST</span>
+                <div className="flex lg:hidden items-center mb-6">
+                  <Logo width={180} height={56} href="" />
                 </div>
                 
                 <h2 className="text-2xl sm:text-[26px] font-bold text-gray-900 tracking-tight">Welcome back</h2>
@@ -425,8 +414,6 @@ export default function LoginPage() {
               <a href="/privacy" className="hover:text-gray-600 transition-colors">Privacy Policy</a>
               <span className="hidden sm:inline">•</span>
               <a href="/terms" className="hover:text-gray-600 transition-colors">Terms of Service</a>
-              <span className="hidden sm:inline">•</span>
-              <a href="#" className="hover:text-gray-600 transition-colors">Security Whitepaper</a>
             </div>
           </div>
         </footer>

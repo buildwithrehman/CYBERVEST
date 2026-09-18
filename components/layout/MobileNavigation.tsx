@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils/cn";
 import { NAVIGATION_CONFIG } from "./NavigationConfig";
 
@@ -31,8 +32,8 @@ export function MobileNavigation() {
 
           {/* Drawer */}
           <div className="relative flex w-full max-w-xs flex-1 flex-col bg-forest text-white">
-            <div className="flex h-16 items-center justify-between px-6">
-              <span className="font-bold text-lg tracking-tight">CYBERVEST</span>
+            <div className="flex h-16 items-center justify-between px-6 border-b border-forest-800">
+              <Logo width={140} height={40} href="/dashboard" />
               <button
                 onClick={() => setIsOpen(false)}
                 className="p-2 text-mint hover:text-white"

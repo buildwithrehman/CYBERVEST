@@ -69,41 +69,29 @@ async def execute_tool(query: str, user: AuthenticatedUser) -> tuple[str, Dict[s
         elif unit in ["lakh", "l"]:
             budget = int(val * 100000)
 
-    # 3. FAIR Engine (Demonstration Mode)
+    # 3. FAIR Engine (LIVE DATA)
     if "highest financial" in lower_query or "eal" in lower_query or "p90" in lower_query or "mfa" in lower_query:
-        if "highest financial" in lower_query or "organization's risk" in lower_query or "another organization" in lower_query:
-            scenario_input = get_demo_fair_input(user.organization_id)
-            result = calculate_fair(scenario_input)
-            data = result.model_dump()
-            data["data_mode"] = "demonstration"
-            data["data_source"] = "synthetic/model scenario"
-            data["limitations"] = "The current AI interface does not yet expose an organization-wide ranked financial-risk dataset. I can provide the verified CYBERVEST demonstration FAIR scenario, but it should not be interpreted as the organization's highest-risk asset."
-            return "FAIR Engine (Demonstration Model Scenario)", data
+        from ...api.routers.fair import get_latest_fair_result
+        try:
+            live_data = await get_latest_fair_result(user)
+            live_data["data_mode"] = "live"
+            live_data["data_source"] = "Verified CYBERVEST Database"
+            if "highest financial" in lower_query or "organization's risk" in lower_query or "another organization" in lower_query:
+                live_data["limitations"] = "This represents the latest FAIR calculation run by the organization. It may not represent the single highest risk asset universally."
+            return "FAIR Engine (Live Verified Data)", live_data
+        except Exception:
+            return "Unsupported", {"reason": "Data Unavailable / Run Engine First"}
         
-        scenario_input = get_demo_fair_input(user.organization_id)
-        result = calculate_fair(scenario_input)
-        data = result.model_dump()
-        data["data_mode"] = "demonstration"
-        data["data_source"] = "synthetic/model scenario"
-        return "FAIR Engine (Demonstration Model Scenario)", data
-        
-    # 4. Optimization Engine
+    # 4. Optimization Engine (LIVE DATA)
     elif "budget" in lower_query or "optimize" in lower_query or budget > 0:
-        if budget == 0:
-            budget = 10000000 # default fallback
-            
-        opt_req = OptimizationRequest(
-            organization_id=user.organization_id,
-            budget=budget,
-            mitigations=get_certified_mitigations(),
-            baseline_scenario=get_demo_fair_input(user.organization_id).model_dump()
-        )
-        res = optimize_portfolio(opt_req)
-        data = res.model_dump()
-        data["data_mode"] = "demonstration"
-        data["data_source"] = "synthetic/model scenario"
-        data["limitations"] = "This represents an optimization solver result based on a demonstration baseline scenario."
-        return "Optimization Engine (Demonstration Model Scenario)", data
+        from ...api.routers.optimization import get_latest_optimization
+        try:
+            live_data = await get_latest_optimization(user)
+            live_data["data_mode"] = "live"
+            live_data["data_source"] = "Verified CYBERVEST Database"
+            return "Optimization Engine (Live Verified Data)", live_data
+        except Exception:
+            return "Unsupported", {"reason": "Data Unavailable / Run Engine First"}
         
     # 5. Compliance Engine (LIVE DATA)
     elif "compliance" in lower_query or "gap" in lower_query or "rbi" in lower_query or "soc2" in lower_query:

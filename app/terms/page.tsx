@@ -158,7 +158,7 @@ export default function TermsPage() {
       </main>
 
       <footer className="w-full py-6 text-center text-xs text-slate-500 mt-auto bg-white border-t border-slate-200">
-        <p>© 2025 CYBERVEST Intelligence Inc. All rights reserved.</p>
+        <p>© 2026 CYBERVEST Intelligence Inc. All rights reserved.</p>
         <div className="flex items-center justify-center gap-4 mt-2">
           <Link href="/login" className="hover:text-slate-900 transition-colors">Sign In</Link>
           <span>•</span>

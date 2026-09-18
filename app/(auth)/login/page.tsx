@@ -409,7 +409,7 @@ export default function LoginPage() {
         {/* Global Footer */}
         <footer className="w-full py-3 text-center text-xs text-gray-500 mt-auto pt-6">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 lg:gap-4">
-            <p>© 2025 CYBERVEST Intelligence Inc. All rights reserved.</p>
+            <p>© 2026 CYBERVEST Intelligence Inc. All rights reserved.</p>
             <div className="flex items-center gap-2 sm:gap-4">
               <a href="/privacy" className="hover:text-gray-600 transition-colors">Privacy Policy</a>
               <span className="hidden sm:inline">•</span>

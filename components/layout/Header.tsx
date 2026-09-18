@@ -17,9 +17,8 @@ export function Header() {
         <button disabled title="Global Search is currently unavailable" className="p-2 text-slate-300 cursor-not-allowed opacity-50 transition-colors">
           <Search className="w-5 h-5" />
         </button>
-        <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors relative">
+        <button disabled title="Notifications are currently unavailable" className="p-2 text-slate-300 cursor-not-allowed opacity-50 transition-colors">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-semantic-threat-text rounded-full border border-white" />
         </button>
         
         <UserMenu />

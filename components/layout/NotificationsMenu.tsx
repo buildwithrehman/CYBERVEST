@@ -137,7 +137,7 @@ export function NotificationsMenu() {
             ) : events.length === 0 ? (
               <div className="p-8 text-center flex flex-col items-center justify-center">
                 <CheckCircle className="w-8 h-8 text-slate-300 mb-2" />
-                <p className="text-sm text-slate-500">You're all caught up!</p>
+                <p className="text-sm text-slate-500">You&apos;re all caught up!</p>
               </div>
             ) : (
               <div className="divide-y divide-border">

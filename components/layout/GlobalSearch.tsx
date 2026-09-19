@@ -215,7 +215,7 @@ export function GlobalSearch() {
           ) : query.trim().length >= 2 ? (
             <div className="p-6 text-center">
               <p className="text-sm text-slate-900 font-medium">No results found</p>
-              <p className="text-xs text-slate-500 mt-1">We couldn't find anything matching "{query}"</p>
+              <p className="text-xs text-slate-500 mt-1">We couldn&apos;t find anything matching &quot;{query}&quot;</p>
             </div>
           ) : (
             <div className="p-4 text-center">

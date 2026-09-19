@@ -61,6 +61,18 @@ export async function inviteMemberAction(email: string, role: string, token: str
       throw new Error("User is already a member of this organization");
     }
 
+    // Ensure profile exists before inserting into organization_members
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: targetUserId,
+        email: email
+      });
+
+    if (profileError) {
+      throw new Error("Failed to configure user profile");
+    }
+
     // Insert into organization_members
     const { error: insertError } = await supabase
       .from('organization_members')

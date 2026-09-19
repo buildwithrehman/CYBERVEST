@@ -250,6 +250,10 @@ export default function RolesAccessPage() {
         </div>
       )}
 
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold text-slate-900">Organization Members</h2>
+      </div>
+
       {members.length === 0 ? (
         <div className="p-12 text-center border border-slate-200 rounded-lg bg-white">
           <p className="text-slate-500">No members found.</p>

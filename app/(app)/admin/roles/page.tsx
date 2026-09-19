@@ -209,34 +209,37 @@ export default function RolesAccessPage() {
 
       
       {/* Role Definitions */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm w-full mb-8">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+      <div className="w-full mb-12">
+        <div className="mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Role Definitions</h2>
           <p className="text-sm text-slate-500">System roles and their permitted access scopes.</p>
         </div>
-        <div className="divide-y divide-slate-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[
-            { id: "ADMIN", name: "Admin", desc: "Full administrative access to all system settings, users, and data.", scope: "Read/Write All, User Management", active: true },
-            { id: "CISO", name: "CISO", desc: "Executive oversight of security posture, risks, and investments.", scope: "Read/Write Cyber & Risk Data", active: true },
-            { id: "SECURITY_ANALYST", name: "Security Analyst", desc: "Manages operational security, vulnerabilities, and telemetry.", scope: "Read/Write Assets & Security", active: true },
-            { id: "RISK_MANAGER", name: "Risk Manager", desc: "Conducts FAIR assessments and models financial risk scenarios.", scope: "Read/Write Risk & FAIR Data", active: true },
-            { id: "EXECUTIVE", name: "Executive", desc: "Views high-level executive dashboards and ROSI metrics.", scope: "Read Only (Dashboards, Risk)", active: true },
-            { id: "AUDITOR", name: "Auditor", desc: "Reviews compliance frameworks, evidence, and audit logs.", scope: "Read Only (Compliance, Audit)", active: true },
-            { id: "COMPLIANCE_OFFICER", name: "Compliance Officer", desc: "Manages compliance frameworks and uploads evidence.", scope: "Read/Write Compliance", active: false },
-            { id: "VIEWER", name: "Viewer", desc: "Basic read-only access to non-sensitive dashboards.", scope: "Read Only (Basic)", active: false }
-          ].map(r => (
-            <div key={r.id} className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-slate-900">{r.name}</h3>
-                  {!r.active && <span className="text-[10px] uppercase tracking-wider font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Coming Soon</span>}
-                </div>
-                <p className="text-sm text-slate-500 mt-1">{r.desc}</p>
+            { id: "ADMIN", name: "Admin", desc: "Full administrative access to all system settings, users, and data.", responsibility: "Organization & user administration", scope: "Read/Write All • User Management", active: true },
+            { id: "CISO", name: "CISO", desc: "Executive oversight of security posture, risks, and investments.", responsibility: "Cyber risk & executive oversight", scope: "Read/Write Cyber & Risk Data", active: true },
+            { id: "SECURITY_ANALYST", name: "Security Analyst", desc: "Manages operational security, vulnerabilities, and telemetry.", responsibility: "Security operations & telemetry", scope: "Read/Write Assets & Security", active: true },
+            { id: "RISK_MANAGER", name: "Risk Manager", desc: "Conducts FAIR assessments and models financial risk scenarios.", responsibility: "FAIR & financial risk", scope: "Read/Write Risk & FAIR Data", active: true },
+            { id: "EXECUTIVE", name: "Executive", desc: "Views high-level executive dashboards and ROSI metrics.", responsibility: "Executive dashboards & risk visibility", scope: "Read Only (Dashboards, Risk)", active: true },
+            { id: "AUDITOR", name: "Auditor", desc: "Reviews compliance frameworks, evidence, and audit logs.", responsibility: "Compliance & audit", scope: "Read Only (Compliance, Audit)", active: true },
+            { id: "COMPLIANCE_OFFICER", name: "Compliance Officer", desc: "Manages compliance frameworks and uploads evidence.", responsibility: "Manage compliance frameworks", scope: "Read/Write Compliance", active: false },
+            { id: "VIEWER", name: "Viewer", desc: "Basic read-only access to non-sensitive dashboards.", responsibility: "General dashboard viewing", scope: "Read Only (Basic)", active: false }
+          ].filter(r => r.active).map(r => (
+            <div key={r.id} className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm flex flex-col h-full">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-slate-900 tracking-wide">{r.id}</h3>
+                <span className="text-xs font-medium bg-slate-50 text-slate-600 px-2.5 py-1 rounded border border-slate-200">{r.name}</span>
               </div>
-              <div className="sm:text-right">
-                <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
-                  {r.scope}
-                </span>
+              <p className="text-sm text-slate-600 mb-6 flex-grow">{r.desc}</p>
+              <div className="text-xs space-y-2 mt-auto pt-4 border-t border-slate-100">
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-slate-500 w-24 shrink-0">Responsibility:</span>
+                  <span className="text-slate-700">{r.responsibility}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-slate-500 w-24 shrink-0">Access:</span>
+                  <span className="text-slate-700">{r.scope}</span>
+                </div>
               </div>
             </div>
           ))}
@@ -244,14 +247,15 @@ export default function RolesAccessPage() {
       </div>
 
       {(updateError || updateSuccess) && (
-        <div className={`p-4 rounded text-sm flex items-start gap-3 \${updateError ? 'bg-red-50 text-red-800' : 'bg-green-50 text-[#0F3F2E]'}`}>
+        <div className={`p-4 rounded-lg text-sm flex items-start gap-3 mb-8 \${updateError ? 'bg-red-50 text-red-800 border border-red-100' : 'bg-green-50 text-[#0F3F2E] border border-green-100'}`}>
           {updateError && <ShieldAlert className="w-5 h-5 shrink-0" />}
           <div>{updateError || updateSuccess}</div>
         </div>
       )}
 
-      <div className="mb-4">
+      <div className="mb-6">
         <h2 className="text-xl font-semibold text-slate-900">Organization Members</h2>
+        <p className="text-sm text-slate-500 mt-1">Manage organization members and assign their existing access roles.</p>
       </div>
 
       {members.length === 0 ? (

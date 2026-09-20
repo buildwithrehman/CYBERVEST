@@ -16,6 +16,7 @@ export function Logo({ className = "", width = 240, height = 80, href = "/" }: L
         alt="CYBERVEST: Quantify Explain Optimize Defend" 
         fill
         className="object-contain object-left"
+        unoptimized
         priority
       />
     </div>

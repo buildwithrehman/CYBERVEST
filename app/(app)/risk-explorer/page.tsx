@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api/client";
 import { FAIRResultOutput, FAIRScenarioInput, RiskAsset } from "@/lib/types/api";
 import { LoadingState, ErrorState } from "@/components/ui/States";
+import { supabase } from "@/lib/auth/supabase";
 import Link from "next/link";
 import {
   Server,
@@ -94,6 +95,18 @@ export default function RiskExplorerPage() {
   const { data: riskAssets, isLoading: assetsLoading, error: assetsError } = useQuery({
     queryKey: ["risk_explorer"],
     queryFn: () => fetchApi<RiskAsset[]>("/api/risk-explorer/"),
+  });
+
+  const { data: businessServices } = useQuery({
+    queryKey: ["business_services_map"],
+    queryFn: async () => {
+      const { data } = await supabase.from("business_services").select("id, name");
+      if (!data) return {};
+      return data.reduce((acc, curr) => {
+        acc[curr.id] = curr.name;
+        return acc;
+      }, {} as Record<string, string>);
+    }
   });
 
   // Unique lists for dynamic dropdowns
@@ -197,7 +210,7 @@ export default function RiskExplorerPage() {
       const rows = filteredAssets.map(asset => [
         `"${(asset.name || "").replace(/"/g, '""')}"`,
         `"${(asset.asset_type || "unspecified").replace(/"/g, '""')}"`,
-        `"${(asset.business_service_id || "").replace(/"/g, '""')}"`,
+        `"${((businessServices && businessServices[asset.business_service_id || ""]) ? businessServices[asset.business_service_id || ""] : (asset.business_service_id || "")).replace(/"/g, '""')}"`,
         `"${(asset.environment || "unspecified").replace(/"/g, '""')}"`,
         `"${(asset.criticality || "unspecified").replace(/"/g, '""')}"`,
         asset.internet_exposed ? "Yes" : "No",
@@ -405,7 +418,7 @@ export default function RiskExplorerPage() {
           >
             <option value="All">All Services</option>
             {uniqueServices.map(s => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{businessServices?.[s] || s}</option>
             ))}
           </select>
           

@@ -24,7 +24,7 @@ export default function AssetsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Asset Inventory</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage and track your organization\organization&apos;sapos;s digital assets and their risk exposure.</p>
+          <p className="text-sm text-slate-500 mt-1">Manage and track your organization&apos;s digital assets and their risk exposure.</p>
         </div>
       </div>
 

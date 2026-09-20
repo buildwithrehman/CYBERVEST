@@ -8,25 +8,25 @@ client = TestClient(app)
 
 def override_get_current_user_admin():
     return AuthenticatedUser(
-        user_id="user_admin",
+        user_id="a3333333-3333-3333-3333-333333333333",
         email="admin@demofin.com",
-        organization_id="org_1",
+        organization_id="11111111-1111-1111-1111-111111111111",
         role=Role.ADMIN
     )
 
 def override_get_current_user_auditor():
     return AuthenticatedUser(
-        user_id="user_auditor",
+        user_id="a5555555-5555-5555-5555-555555555555",
         email="auditor@demofin.com",
-        organization_id="org_1",
+        organization_id="11111111-1111-1111-1111-111111111111",
         role=Role.AUDITOR
     )
 
 def override_get_current_user_other_org():
     return AuthenticatedUser(
-        user_id="user_other",
+        user_id="a7777777-7777-7777-7777-777777777777",
         email="hacker@other.com",
-        organization_id="org_2",
+        organization_id="22222222-2222-2222-2222-222222222222",
         role=Role.ADMIN
     )
 

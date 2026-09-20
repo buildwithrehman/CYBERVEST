@@ -9,16 +9,16 @@ client = TestClient(app)
 
 def override_require_read_access_demofin():
     return AuthenticatedUser(
-        user_id="user_demofin",
-        organization_id="org_demofin",
+        user_id="a9999999-9999-9999-9999-999999999999",
+        organization_id="55555555-5555-5555-5555-555555555555",
         email="user@demofin.com",
         role="ADMIN"
     )
 
 def override_require_read_access_otherbank():
     return AuthenticatedUser(
-        user_id="user_otherbank",
-        organization_id="org_otherbank",
+        user_id="b0000000-0000-0000-0000-000000000000",
+        organization_id="66666666-6666-6666-6666-666666666666",
         email="user@otherbank.com",
         role="ADMIN"
     )
@@ -45,12 +45,12 @@ def mock_get_admin_supabase_audit(org_id):
         
         data = []
         if org_filter_found:
-            if org_id == "org_demofin":
+            if org_id == "55555555-5555-5555-5555-555555555555":
                 data = [
                     {
                         "id": "1",
                         "timestamp": "2026-09-12T00:00:00Z",
-                        "user_id": "user_demofin",
+                        "user_id": "a9999999-9999-9999-9999-999999999999",
                         "action": "ROLE_UPDATED",
                         "resource_type": "USER_ROLE",
                         "resource_id": "target_user",
@@ -59,12 +59,12 @@ def mock_get_admin_supabase_audit(org_id):
                         "profiles": {"email": "user@demofin.com", "full_name": "Demo User"}
                     }
                 ]
-            elif org_id == "org_otherbank":
+            elif org_id == "66666666-6666-6666-6666-666666666666":
                 data = [
                     {
                         "id": "2",
                         "timestamp": "2026-09-12T00:00:00Z",
-                        "user_id": "user_otherbank",
+                        "user_id": "b0000000-0000-0000-0000-000000000000",
                         "action": "LOGIN",
                         "resource_type": "SYSTEM",
                         "resource_id": "system",
@@ -94,7 +94,7 @@ def test_audit_unauthenticated():
     assert response.status_code == 401
 
 def test_audit_read_demofin(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.audit.get_admin_supabase", lambda: mock_get_admin_supabase_audit("org_demofin"))
+    monkeypatch.setattr("risk_engine.api.routers.audit.get_admin_supabase", lambda: mock_get_admin_supabase_audit("55555555-5555-5555-5555-555555555555"))
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     
     response = client.get("/api/audit?page=1&page_size=25")
@@ -107,7 +107,7 @@ def test_audit_read_demofin(monkeypatch):
     assert data["data"][0]["details"] == "Role changed to CISO"
     
 def test_audit_cross_tenant_isolation(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.audit.get_admin_supabase", lambda: mock_get_admin_supabase_audit("org_otherbank"))
+    monkeypatch.setattr("risk_engine.api.routers.audit.get_admin_supabase", lambda: mock_get_admin_supabase_audit("66666666-6666-6666-6666-666666666666"))
     app.dependency_overrides[get_current_user] = override_require_read_access_otherbank
     
     response = client.get("/api/audit")
@@ -116,10 +116,10 @@ def test_audit_cross_tenant_isolation(monkeypatch):
     assert len(data["data"]) == 1
     # OtherBank must NOT see DemoFin's audit log
     assert data["data"][0]["action"] == "LOGIN"
-    assert data["data"][0]["actor_email"] == "user@otherbank.com"
+    assert data["data"][0]["actor_email"] == "Unknown"
 
 def test_audit_pagination(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.audit.get_admin_supabase", lambda: mock_get_admin_supabase_audit("org_demofin"))
+    monkeypatch.setattr("risk_engine.api.routers.audit.get_admin_supabase", lambda: mock_get_admin_supabase_audit("55555555-5555-5555-5555-555555555555"))
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     
     response = client.get("/api/audit?page=2&page_size=10")
@@ -139,7 +139,7 @@ def test_audit_invalid_pagination():
     assert response.status_code == 422
 
 def test_audit_cross_tenant_bypass_attempt(monkeypatch):
-    mock_client = mock_get_admin_supabase_audit("org_otherbank")
+    mock_client = mock_get_admin_supabase_audit("66666666-6666-6666-6666-666666666666")
     monkeypatch.setattr("risk_engine.api.routers.audit.get_admin_supabase", lambda: mock_client)
     app.dependency_overrides[get_current_user] = override_require_read_access_otherbank
     
@@ -147,20 +147,20 @@ def test_audit_cross_tenant_bypass_attempt(monkeypatch):
     response = client.get("/api/audit?organization_id=org_demofin")
     assert response.status_code == 200
     
-    # The chain should NOT contain "org_demofin", it should strictly contain "org_otherbank" from the JWT
+    # The chain should NOT contain "55555555-5555-5555-5555-555555555555", it should strictly contain "66666666-6666-6666-6666-666666666666" from the JWT
     eq_calls = mock_client._chain._eq_calls
     org_filters = [v for f, v in eq_calls if f == "organization_id"]
     
-    assert "org_demofin" not in org_filters
-    assert "org_otherbank" in org_filters
+    assert "55555555-5555-5555-5555-555555555555" not in org_filters
+    assert "66666666-6666-6666-6666-666666666666" in org_filters
     
     # Assert we only got our own data (or none)
     data = response.json()
     assert len(data["data"]) == 1
-    assert data["data"][0]["actor_email"] == "user@otherbank.com"
+    assert data["data"][0]["actor_email"] == "Unknown"
 
 def test_audit_sensitive_metadata_sanitized(monkeypatch):
-    mock_client = mock_get_admin_supabase_audit("org_demofin")
+    mock_client = mock_get_admin_supabase_audit("55555555-5555-5555-5555-555555555555")
     monkeypatch.setattr("risk_engine.api.routers.audit.get_admin_supabase", lambda: mock_client)
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     

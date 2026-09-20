@@ -8,33 +8,33 @@ client = TestClient(app)
 
 def override_get_current_user_admin():
     return AuthenticatedUser(
-        user_id="user_admin",
+        user_id="a3333333-3333-3333-3333-333333333333",
         email="admin@demofin.com",
-        organization_id="org_1",
+        organization_id="11111111-1111-1111-1111-111111111111",
         role=Role.ADMIN
     )
 
 def override_get_current_user_analyst():
     return AuthenticatedUser(
-        user_id="user_analyst",
+        user_id="a6666666-6666-6666-6666-666666666666",
         email="analyst@demofin.com",
-        organization_id="org_1",
+        organization_id="11111111-1111-1111-1111-111111111111",
         role=Role.SECURITY_ANALYST
     )
 
 def override_get_current_user_auditor():
     return AuthenticatedUser(
-        user_id="user_auditor",
+        user_id="a5555555-5555-5555-5555-555555555555",
         email="auditor@demofin.com",
-        organization_id="org_1",
+        organization_id="11111111-1111-1111-1111-111111111111",
         role=Role.AUDITOR
     )
 
 def override_get_current_user_other_org():
     return AuthenticatedUser(
-        user_id="user_other",
+        user_id="a7777777-7777-7777-7777-777777777777",
         email="hacker@other.com",
-        organization_id="org_2",
+        organization_id="22222222-2222-2222-2222-222222222222",
         role=Role.ADMIN
     )
 
@@ -49,7 +49,7 @@ def test_analyst_reading_allowed_resource():
     app.dependency_overrides[get_current_user] = override_get_current_user_analyst
     response = client.get("/api/assets/")
     assert response.status_code == 200
-    assert "org_1" in response.json()["message"]
+    assert "11111111-1111-1111-1111-111111111111" in response.json()["message"]
 
 def test_analyst_attempting_admin_action():
     app.dependency_overrides[get_current_user] = override_get_current_user_analyst
@@ -72,7 +72,7 @@ def test_cross_tenant_fair_scenario():
     payload = {
         "scenario_id": "123",
         "scenario_name": "Test",
-        "organization_id": "org_1",
+        "organization_id": "11111111-1111-1111-1111-111111111111",
         "tef": {"min_val": 2.0, "likely_val": 10.0, "max_val": 25.0},
         "susceptibility": {"min_val": 0.4, "likely_val": 0.6, "max_val": 0.9},
         "productivity_loss": {"min_val": 100000, "likely_val": 500000, "max_val": 2000000},
@@ -89,7 +89,7 @@ def test_cross_tenant_fair_scenario():
 def test_cross_tenant_ml_predict():
     app.dependency_overrides[get_current_user] = override_get_current_user_other_org
     payload = {
-        "organization_id": "org_1",
+        "organization_id": "11111111-1111-1111-1111-111111111111",
         "features": {
             "asset_type": "Server",
             "criticality": "Medium",
@@ -108,13 +108,13 @@ def test_cross_tenant_ml_predict():
 def test_cross_tenant_optimization():
     app.dependency_overrides[get_current_user] = override_get_current_user_other_org
     payload = {
-        "organization_id": "org_1",
+        "organization_id": "11111111-1111-1111-1111-111111111111",
         "budget": 10000,
         "mitigations": [],
         "baseline_scenario": {
             "scenario_id": "123",
             "scenario_name": "Test",
-            "organization_id": "org_1",
+            "organization_id": "11111111-1111-1111-1111-111111111111",
             "tef": {"min_val": 2.0, "likely_val": 10.0, "max_val": 25.0},
             "susceptibility": {"min_val": 0.4, "likely_val": 0.6, "max_val": 0.9},
             "productivity_loss": {"min_val": 100000, "likely_val": 500000, "max_val": 2000000},
@@ -142,14 +142,14 @@ def test_get_current_user_parses_auth(monkeypatch):
     from risk_engine.auth.models import Role
 
     class MockUser:
-        id = "user_123"
+        id = "a8888888-8888-8888-8888-888888888888"
         email = "test@example.com"
 
     class MockUserResponse:
         user = MockUser()
 
     class MockTableResponse:
-        data = [{"organization_id": "org_123", "role": Role.ADMIN}]
+        data = [{"organization_id": "33333333-3333-3333-3333-333333333333", "role": Role.ADMIN}]
 
     class MockTable:
         def select(self, *args, **kwargs): return self
@@ -169,9 +169,9 @@ def test_get_current_user_parses_auth(monkeypatch):
     creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid_token")
     user = get_current_user(creds)
 
-    assert user.user_id == "user_123"
+    assert user.user_id == "a8888888-8888-8888-8888-888888888888"
     assert user.email == "test@example.com"
-    assert user.organization_id == "org_123"
+    assert user.organization_id == "33333333-3333-3333-3333-333333333333"
     assert user.role == Role.ADMIN
 
 def test_get_supabase_client_stateless(monkeypatch):
@@ -207,14 +207,14 @@ def test_get_current_user_calls_get_user_with_token(monkeypatch):
     from risk_engine.auth.models import Role
     
     class MockUser:
-        id = "user_123"
+        id = "a8888888-8888-8888-8888-888888888888"
         email = "test@example.com"
         
     class MockUserResponse:
         user = MockUser()
         
     class MockTableResponse:
-        data = [{"organization_id": "org_123", "role": Role.ADMIN}]
+        data = [{"organization_id": "33333333-3333-3333-3333-333333333333", "role": Role.ADMIN}]
         
     class MockTable:
         def select(self, *args, **kwargs): return self
@@ -242,7 +242,7 @@ def test_get_current_user_calls_get_user_with_token(monkeypatch):
     creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="my_valid_jwt")
     user = get_current_user(creds)
     
-    assert user.user_id == "user_123"
+    assert user.user_id == "a8888888-8888-8888-8888-888888888888"
     # Ensure token was explicitly passed to get_user
     assert mock_client_instance.auth.passed_token == "my_valid_jwt"
 

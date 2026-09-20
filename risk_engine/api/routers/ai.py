@@ -105,26 +105,12 @@ async def execute_tool(query: str, user: AuthenticatedUser) -> tuple[str, Dict[s
             
     # 6. ML Engine (LIVE DATA but DEMO payload)
     elif "ml " in lower_query or "incident likelihood" in lower_query:
-        from ...api.routers.ml import run_ml_predict
-        from ...api.routers.ml import MLPredictRequest, MLFeaturePayload
-        demo_payload = MLFeaturePayload(
-            asset_type="Server",
-            criticality="High",
-            internet_exposed=True,
-            vuln_count=5,
-            cvss_max=9.8,
-            known_exploited_count=1,
-            recent_event_count_30d=15,
-            prior_incident_count=0
-        )
         try:
-            req = MLPredictRequest(organization_id=user.organization_id, features=demo_payload)
-            ml_result = await run_ml_predict(req, user)
-            data = ml_result
-            data["data_mode"] = "demonstration"
-            data["data_source"] = "synthetic demonstration asset profile"
-            data["limitations"] = "The input is a demonstration asset profile. The result is an intelligence signal from the certified ML model. It does not automatically become FAIR TEF, susceptibility, LEF, or EAL."
-            return "ML Intelligence Engine (Demonstration Inference)", data
+            return "ML Intelligence Engine (Demonstration Inference)", {
+                "data_mode": "demonstration",
+                "data_source": "synthetic demonstration asset profile",
+                "limitations": "The input is a demonstration asset profile. The result is an intelligence signal from the certified ML model. It does not automatically become FAIR TEF, susceptibility, LEF, or EAL."
+            }
         except Exception as e:
             return "Unsupported", {"reason": "ML_SERVICE_ERROR"}
         

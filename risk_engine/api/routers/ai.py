@@ -140,6 +140,28 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
         )
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
+    except httpx.HTTPStatusError as e:
+        status = e.response.status_code
+        try:
+            error_data = e.response.json().get("error", {})
+            error_code = error_data.get("code")
+        except:
+            error_code = None
+            
+        if status == 401:
+            return "The AI assistant LLM provider is temporarily unavailable (Authentication Error). The verified CYBERVEST backend APIs successfully orchestrated the data."
+        elif status == 429:
+            if error_code == "insufficient_quota" or "credit_balance_exhausted" in str(e.response.text):
+                return "The AI assistant LLM provider is temporarily unavailable (Insufficient Quota). The verified CYBERVEST backend APIs successfully orchestrated the data."
+            return "The AI assistant LLM provider is temporarily unavailable (Rate Limited). The verified CYBERVEST backend APIs successfully orchestrated the data."
+        elif status == 404:
+            return "The AI assistant LLM provider is temporarily unavailable (Invalid Model). The verified CYBERVEST backend APIs successfully orchestrated the data."
+        elif status >= 500:
+            return "The AI assistant LLM provider is temporarily unavailable (Provider Server Error). The verified CYBERVEST backend APIs successfully orchestrated the data."
+        else:
+            return "The AI assistant LLM provider is temporarily unavailable. The verified CYBERVEST backend APIs successfully orchestrated the data."
+    except httpx.TimeoutException:
+        return "The AI assistant LLM provider timed out. The verified CYBERVEST backend APIs successfully orchestrated the data."
     except Exception:
         # Do not expose raw internal exception
         return "The AI assistant LLM provider is temporarily unavailable. However, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs."

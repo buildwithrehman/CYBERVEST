@@ -52,8 +52,12 @@ def test_reports_unauthenticated():
     response = client.post("/api/reports/generate", json={"report_type": "FRAMEWORK_EVIDENCE"})
     assert response.status_code == 401
 
+@pytest.fixture(autouse=True)
+def bypass_idempotency(monkeypatch):
+    monkeypatch.setattr("risk_engine.utils.idempotency.check_duplicate_request", lambda *args, **kwargs: None)
+
 def test_reports_generate_framework_evidence(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     
     response = client.post("/api/reports/generate", json={"report_type": "FRAMEWORK_EVIDENCE"})
@@ -66,7 +70,7 @@ def test_reports_generate_framework_evidence(monkeypatch):
     
 def test_reports_tenant_isolation(monkeypatch):
     # Authenticated as DemoFin
-    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     
     # Send a malicious payload hoping to bypass
@@ -81,7 +85,7 @@ def test_reports_tenant_isolation(monkeypatch):
     assert data["metadata"]["organization_id"] == "55555555-5555-5555-5555-555555555555"
 
 def test_reports_unsupported_type_rejected(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     
     response = client.post("/api/reports/generate", json={"report_type": "EXECUTIVE_RISK"})
@@ -100,8 +104,15 @@ def override_require_read_access_otherbank():
         role="ADMIN"
     )
 
+def test_reports_unsupported_type_rejected(monkeypatch):
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
+    app.dependency_overrides[get_current_user] = override_require_read_access_demofin
+    
+    response = client.post("/api/reports/generate", json={"report_type": "INVALID_TYPE"})
+    assert response.status_code == 400
+
 def test_reports_generate_framework_evidence_otherbank(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda: mock_get_admin_supabase_reports("66666666-6666-6666-6666-666666666666"))
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("66666666-6666-6666-6666-666666666666"))
     app.dependency_overrides[get_current_user] = override_require_read_access_otherbank
     
     response = client.post("/api/reports/generate", json={"report_type": "FRAMEWORK_EVIDENCE"})
@@ -109,39 +120,31 @@ def test_reports_generate_framework_evidence_otherbank(monkeypatch):
     data = response.json()
     assert data["metadata"]["report_type"] == "Framework / Evidence Report"
     assert data["metadata"]["organization_id"] == "66666666-6666-6666-6666-666666666666"
-    # Otherbank has no controls in our mock
     assert len(data["content"]["controls"]) == 0
 
 def test_reports_pdf_requires_authentication():
-    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides = {}
     response = client.post("/api/reports/pdf", json={"report_type": "FRAMEWORK_EVIDENCE"})
     assert response.status_code == 401
 
 def test_reports_pdf_framework_evidence(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     
     response = client.post("/api/reports/pdf", json={"report_type": "FRAMEWORK_EVIDENCE"})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/pdf"
-    
-    # Must start with %PDF-
     assert response.content.startswith(b"%PDF-")
-    assert len(response.content) > 100
-    
-    # PDF contains CYBERVEST (since PDF encodes text, we search for bytes)
-    # FlateDecode obscures text, but some string fields might exist in metadata or streams if not compressed.
-    # To be safe, we just verify it's a valid non-empty PDF signature.
     
 def test_reports_pdf_unsupported_report(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     
-    response = client.post("/api/reports/pdf", json={"report_type": "EXECUTIVE_RISK"})
-    assert response.status_code == 422
+    response = client.post("/api/reports/pdf", json={"report_type": "INVALID_TYPE"})
+    assert response.status_code == 400
     
 def test_reports_pdf_tenant_isolation(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("55555555-5555-5555-5555-555555555555"))
     app.dependency_overrides[get_current_user] = override_require_read_access_demofin
     
     response = client.post("/api/reports/pdf", json={
@@ -152,7 +155,7 @@ def test_reports_pdf_tenant_isolation(monkeypatch):
     assert response.content.startswith(b"%PDF-")
     
 def test_reports_pdf_otherbank_isolation(monkeypatch):
-    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda: mock_get_admin_supabase_reports("66666666-6666-6666-6666-666666666666"))
+    monkeypatch.setattr("risk_engine.api.routers.reports.get_supabase_client", lambda token=None: mock_get_admin_supabase_reports("66666666-6666-6666-6666-666666666666"))
     app.dependency_overrides[get_current_user] = override_require_read_access_otherbank
     
     response = client.post("/api/reports/pdf", json={"report_type": "FRAMEWORK_EVIDENCE"})

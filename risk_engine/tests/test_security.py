@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
 from risk_engine.main import app
@@ -45,11 +47,14 @@ def test_unauthenticated_request():
     response = client.get("/api/assets/")
     assert response.status_code == 401 # FastAPI HTTPBearer without token returns 401
 
-def test_analyst_reading_allowed_resource():
+def test_analyst_reading_allowed_resource(monkeypatch):
+    mock_client = MagicMock()
+    mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [{"id": "a1111111-1111-1111-1111-111111111111", "name": "Asset1", "organization_id": "11111111-1111-1111-1111-111111111111", "asset_type": "SERVER", "environment": "PRODUCTION", "criticality": "high", "internet_exposed": False, "data_sensitivity": "HIGH", "created_at": "2023-01-01T00:00:00Z", "updated_at": "2023-01-01T00:00:00Z", "owner": "", "location": "", "description": "", "business_service_id": ""}]
+    monkeypatch.setattr("risk_engine.api.routers.assets.get_supabase_client", lambda t: mock_client)
     app.dependency_overrides[get_current_user] = override_get_current_user_analyst
     response = client.get("/api/assets/")
     assert response.status_code == 200
-    assert "11111111-1111-1111-1111-111111111111" in response.json()["message"]
+    assert response.json()[0]["organization_id"] == "11111111-1111-1111-1111-111111111111"
 
 def test_analyst_attempting_admin_action():
     app.dependency_overrides[get_current_user] = override_get_current_user_analyst
@@ -61,9 +66,13 @@ def test_auditor_attempting_modification():
     response = client.post("/api/assets/", json={"name": "New Asset"})
     assert response.status_code == 403
 
-def test_auditor_reading_allowed_data():
+def test_auditor_reading_allowed_data(monkeypatch):
+    mock_client = MagicMock()
+    # It filters by ID and then organization_id
+    mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [{"id": "a1111111-1111-1111-1111-111111111111", "name": "Asset1", "organization_id": "11111111-1111-1111-1111-111111111111", "asset_type": "SERVER", "environment": "PRODUCTION", "criticality": "high", "internet_exposed": False, "data_sensitivity": "HIGH", "created_at": "2023-01-01T00:00:00Z", "updated_at": "2023-01-01T00:00:00Z", "owner": "", "location": "", "description": "", "business_service_id": ""}]
+    monkeypatch.setattr("risk_engine.api.routers.assets.get_supabase_client", lambda t: mock_client)
     app.dependency_overrides[get_current_user] = override_get_current_user_auditor
-    response = client.get("/api/assets/123")
+    response = client.get("/api/assets/a1111111-1111-1111-1111-111111111111")
     assert response.status_code == 200
 
 def test_cross_tenant_fair_scenario():
@@ -86,24 +95,18 @@ def test_cross_tenant_fair_scenario():
     assert response.status_code == 403
     assert "Cross-tenant access forbidden" in response.json()["detail"]
 
-def test_cross_tenant_ml_predict():
+def test_cross_tenant_ml_predict(monkeypatch):
+    mock_client = MagicMock()
+    # Mock asset query returning empty list because of tenant mismatch eq("organization_id", user.organization_id)
+    mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+    monkeypatch.setattr("risk_engine.api.routers.ml.get_supabase_client", lambda t: mock_client)
     app.dependency_overrides[get_current_user] = override_get_current_user_other_org
     payload = {
-        "organization_id": "11111111-1111-1111-1111-111111111111",
-        "features": {
-            "asset_type": "Server",
-            "criticality": "Medium",
-            "internet_exposed": True,
-            "vuln_count": 0,
-            "cvss_max": 0.0,
-            "known_exploited_count": 0,
-            "recent_event_count_30d": 0,
-            "prior_incident_count": 0
-        }
+        "asset_id": "a1111111-1111-1111-1111-111111111111"
     }
     response = client.post("/api/ml/predict", json=payload)
-    assert response.status_code == 403
-    assert "Cross-tenant access forbidden" in response.json()["detail"]
+    assert response.status_code == 404
+    assert "Asset not found" in response.json()["detail"]
 
 def test_cross_tenant_optimization():
     app.dependency_overrides[get_current_user] = override_get_current_user_other_org

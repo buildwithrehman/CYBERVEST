@@ -32,7 +32,7 @@ def override_get_current_user_other_org():
 
 from unittest.mock import MagicMock
 
-def mock_supabase_client():
+def mock_supabase_client(token=None):
     mock_client = MagicMock()
     # Mock /frameworks
     mock_client.table().select().execute.return_value = MagicMock(data=[

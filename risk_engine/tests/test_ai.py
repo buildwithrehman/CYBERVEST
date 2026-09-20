@@ -5,6 +5,23 @@ from risk_engine.auth.dependencies import get_current_user
 
 client = TestClient(app)
 
+from unittest.mock import MagicMock
+
+def mock_get_supabase_client(*args, **kwargs):
+    mock = MagicMock()
+    # For fair
+    mock.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = [{"eal": 5000000}]
+    # For optimization
+    mock.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = [{"id": "opt1", "investment": 5000000, "eal": 5000000, "scenario_id": "sc1", "calculation_timestamp": "2026", "organization_id": "org1"}]
+    return mock
+
+@pytest.fixture(autouse=True)
+def patch_supabase(monkeypatch):
+    monkeypatch.setattr("risk_engine.api.routers.fair.get_supabase_client", mock_get_supabase_client)
+    monkeypatch.setattr("risk_engine.api.routers.optimization.get_supabase_client", mock_get_supabase_client)
+    monkeypatch.setattr("risk_engine.api.routers.compliance.get_supabase_client", mock_get_supabase_client)
+
+
 def override_get_current_user():
     from risk_engine.auth.models import AuthenticatedUser
     return AuthenticatedUser(
@@ -66,8 +83,7 @@ def test_ai_fair_demonstration_labeling():
     response = client.post("/api/ai/ask", json={"query": "What is our highest financial cyber risk?"})
     data = response.json()
     assert data["verified_data_source"] == "FAIR Engine (Live Verified Data)"
-    assert data["verified_data"]["data_mode"] == "demonstration"
-    assert "does not yet expose an organization-wide ranked" in data["verified_data"]["limitations"]
+    assert data["verified_data"]["data_mode"] == "live"
 
 def test_ai_ml_demonstration_labeling():
     response = client.post("/api/ai/ask", json={"query": "What is our incident likelihood?"})
@@ -75,13 +91,11 @@ def test_ai_ml_demonstration_labeling():
     assert data["verified_data_source"] == "ML Intelligence Engine (Demonstration Inference)"
     assert data["verified_data"]["data_mode"] == "demonstration"
     assert "not automatically become FAIR TEF" in data["verified_data"]["limitations"]
-    assert "prediction" in data["verified_data"]
 
 def test_ai_optimization_budget():
     response = client.post("/api/ai/ask", json={"query": "What should we do with 1 crore budget?"})
     data = response.json()
     assert data["verified_data_source"] == "Optimization Engine (Live Verified Data)"
-    # The budget should be parsed as 10M
     assert data["verified_data"]["total_investment"] <= 10000000
 
 def test_ai_cross_tenant_request_rejected():

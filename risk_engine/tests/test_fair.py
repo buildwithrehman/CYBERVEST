@@ -103,7 +103,7 @@ def test_13_zero_loss_years():
     zero_years = np.sum(res['annual_loss'] == 0)
     assert zero_years > (scen.simulation_count * 0.5) # At least 50% of years should have 0 loss
 
-def test_api_endpoint_structure():
+def test_api_endpoint_structure(monkeypatch):
     # Test the API endpoint directly to ensure run_in_threadpool doesn't alter response
     from fastapi.testclient import TestClient
     from risk_engine.main import app
@@ -118,6 +118,12 @@ def test_api_endpoint_structure():
         organization_id="11111111-1111-1111-1111-111111111111",
         role=Role.ADMIN
     )
+
+    
+    from unittest.mock import MagicMock
+    mock = MagicMock()
+    mock.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [{"id": "123"}]
+    monkeypatch.setattr("risk_engine.api.routers.fair.get_supabase_client", lambda t: mock)
 
     client = TestClient(app)
 
@@ -150,7 +156,7 @@ def test_api_endpoint_structure():
     # Clear overrides
     app.dependency_overrides = {}
 
-def test_fair_memory_bounded_execution():
+def test_fair_memory_bounded_execution(monkeypatch):
     """
     Regression test to ensure the DemoFin 10,000-simulation scenario
     completes without violating Render's 512 MB memory limit.

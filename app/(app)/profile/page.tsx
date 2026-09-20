@@ -59,8 +59,11 @@ export default function ProfilePage() {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: trimmedName, updated_at: new Date().toISOString() })
-        .eq("id", user.id);
+        .upsert({
+          id: user.id,
+          full_name: trimmedName,
+          updated_at: new Date().toISOString(),
+        });
         
       if (error) throw error;
       

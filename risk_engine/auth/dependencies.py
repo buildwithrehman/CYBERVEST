@@ -16,8 +16,6 @@ def get_service_role_key() -> str:
     return os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 def get_supabase_client(token: str) -> Client:
-    if os.environ.get("PYTEST_CURRENT_TEST") or not token:
-        return create_client(get_supabase_url(), get_service_role_key())
     # We initialize the client with anon key, but we set the auth token statelessly in headers.
     # This prevents the gotrue set_session() crash when refresh_token is omitted.
     return create_client(

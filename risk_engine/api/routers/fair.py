@@ -1,16 +1,12 @@
 from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
-from ...auth.dependencies import require_read_access, require_write_access, get_current_user
+from ...auth.dependencies import require_read_access, require_write_access, get_current_user, get_supabase_client
 from ...auth.models import AuthenticatedUser
 from ...fair.models import FAIRScenarioInput
 from ...fair.calculator import calculate_fair
 from ...services.audit import log_audit_event
 import os
 from supabase import create_client
-def get_supabase_client():
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    return create_client(url, key)
 
 
 router = APIRouter()
@@ -37,7 +33,7 @@ async def run_fair_scenario(
         result.scenario_name = request.scenario_name
         return result.model_dump()
     
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     
     from fastapi import HTTPException
     import uuid
@@ -126,7 +122,7 @@ async def run_fair_scenario(
 
 @router.get("/latest")
 async def get_latest_fair_result(user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     
     # Find latest result directly through an inner join on fair_scenarios to filter by organization
     res = client.table("fair_results").select("*, fair_scenarios!inner(id, name, organization_id)").eq("fair_scenarios.organization_id", user.organization_id).order("created_at", desc=True).limit(1).execute()

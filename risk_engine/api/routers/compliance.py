@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import List, Optional
-from ...auth.dependencies import require_read_access, require_write_access, get_current_user, get_auditor, get_admin
+from ...auth.dependencies import require_read_access, require_write_access, get_current_user, get_auditor, get_admin, get_supabase_client
 from ...auth.models import AuthenticatedUser
 from ...services.audit import log_audit_event
 from supabase import create_client
@@ -9,10 +9,6 @@ import os
 
 router = APIRouter()
 
-def get_supabase_client():
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    return create_client(url, key)
 
 # --- MODELS ---
 
@@ -42,13 +38,13 @@ class GapAnalysisResult(BaseModel):
 
 @router.get("/frameworks")
 async def list_frameworks(user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     res = client.table("frameworks").select("*").execute()
     return res.data
 
 @router.get("/frameworks/{framework_id}")
 async def get_framework(framework_id: str, user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     res = client.table("frameworks").select("*").eq("id", framework_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Framework not found")
@@ -56,13 +52,13 @@ async def get_framework(framework_id: str, user: AuthenticatedUser = Depends(req
 
 @router.get("/frameworks/{framework_id}/controls")
 async def list_framework_controls(framework_id: str, user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     res = client.table("framework_controls").select("*").eq("framework_id", framework_id).execute()
     return res.data
 
 @router.get("/overview")
 async def get_compliance_overview(user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     org_id = user.organization_id
     
     # Query organization controls
@@ -100,7 +96,7 @@ async def get_compliance_overview(user: AuthenticatedUser = Depends(require_read
 
 @router.get("/gaps")
 async def list_gaps(user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     org_id = user.organization_id
     
     controls_res = client.table("organization_controls").select(
@@ -121,7 +117,7 @@ async def list_gaps(user: AuthenticatedUser = Depends(require_read_access())):
 
 @router.get("/findings")
 async def list_findings(user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     res = client.table("compliance_findings").select("*").eq("organization_id", user.organization_id).execute()
     return res.data
 
@@ -131,7 +127,7 @@ async def update_control_status(
     payload: ControlUpdatePayload,
     user: AuthenticatedUser = Depends(require_write_access()) # Only writers can modify status. Auditor/Executive blocked.
 ):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     
     # Verify ownership
     existing = client.table("organization_controls").select("organization_id, status").eq("id", organization_control_id).execute()
@@ -160,7 +156,7 @@ async def update_control_status(
 
 @router.post("/evidence")
 async def submit_evidence(payload: EvidencePayload, user: AuthenticatedUser = Depends(require_write_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     
     # 1. Prevent IDOR by asserting ownership of the target control
     target_control_res = client.table("organization_controls").select("organization_id").eq("id", payload.organization_control_id).execute()
@@ -196,6 +192,6 @@ async def submit_evidence(payload: EvidencePayload, user: AuthenticatedUser = De
 
 @router.get("/mappings")
 async def get_mappings(user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     res = client.table("control_mappings").select("*").execute()
     return res.data

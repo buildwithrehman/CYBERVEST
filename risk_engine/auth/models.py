@@ -6,6 +6,7 @@ class AuthenticatedUser(BaseModel):
     email: str
     organization_id: str
     role: str
+    token: str = ""
 
 class Role:
     ADMIN = "ADMIN"

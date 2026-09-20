@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from ...auth.dependencies import get_ciso, get_risk_manager, require_write_access, require_read_access
+from ...auth.dependencies import get_ciso, get_risk_manager, require_write_access, require_read_access, get_supabase_client
 from ...auth.models import AuthenticatedUser
 from ...optimization.models import OptimizationRequest
 from ...optimization.solver import optimize_portfolio
@@ -8,10 +8,6 @@ from ...services.audit import log_audit_event
 import os
 from supabase import create_client
 
-def get_supabase_client():
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    return create_client(url, key)
 
 router = APIRouter()
 
@@ -39,7 +35,7 @@ async def run_optimization(
     )
     
     
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     run_res = client.table("optimization_runs").insert({
         "organization_id": user.organization_id,
         "budget": result.budget,
@@ -70,7 +66,7 @@ async def run_optimization(
 
 @router.get("/latest")
 async def get_latest_optimization(user: AuthenticatedUser = Depends(require_read_access())):
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     res = client.table("optimization_runs").select("*").eq("organization_id", user.organization_id).order("calculation_timestamp", desc=True).limit(1).execute()
     if not res.data:
         from fastapi import HTTPException

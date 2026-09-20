@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
-from ...auth.dependencies import require_read_access, get_current_user
+from ...auth.dependencies import require_read_access, get_current_user, get_supabase_client
 from ...auth.models import AuthenticatedUser
 from supabase import create_client
 import os
@@ -9,10 +9,6 @@ import datetime
 
 router = APIRouter()
 
-def get_supabase_client():
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    return create_client(url, key)
 
 class ReportRequest(BaseModel):
     report_type: str = Field(..., max_length=100)
@@ -31,7 +27,7 @@ async def generate_report(
     from ...utils.idempotency import check_duplicate_request
     check_duplicate_request(request.model_dump_json(), ttl_seconds=5)
 
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     org_id = user.organization_id
     
     # 1. FRAMEWORK / EVIDENCE REPORT
@@ -95,7 +91,7 @@ async def generate_pdf(
     from ...utils.idempotency import check_duplicate_request
     check_duplicate_request(request.model_dump_json(), ttl_seconds=5)
 
-    client = get_supabase_client()
+    client = get_supabase_client(user.token)
     org_id = user.organization_id
     
     if request.report_type == "FRAMEWORK_EVIDENCE":

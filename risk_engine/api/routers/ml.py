@@ -7,10 +7,9 @@ import pandas as pd
 from pathlib import Path
 import json
 
-from ...auth.dependencies import require_read_access, require_write_access
+from ...auth.dependencies import require_read_access, get_supabase_client, require_write_access
 from ...auth.models import AuthenticatedUser
 from ...services.audit import log_audit_event
-from ...api.routers.assets import _get_db
 
 router = APIRouter()
 
@@ -49,7 +48,7 @@ async def run_ml_predict(
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to load certified model artifact.")
 
-    client = _get_db()
+    client = get_supabase_client(user.token)
     
     # 1. Fetch Asset
     asset_res = client.table("assets").select("*").eq("id", payload.asset_id).eq("organization_id", user.organization_id).execute()

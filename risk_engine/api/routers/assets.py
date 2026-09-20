@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 import uuid
 
-from ...auth.dependencies import require_read_access, require_write_access
+from ...auth.dependencies import require_read_access, require_write_access, get_supabase_client
 from ...auth.models import AuthenticatedUser
 from ...services.audit import log_audit_event
 
@@ -27,14 +27,10 @@ class AssetResponse(AssetBase):
     created_at: str
     updated_at: str
 
-def _get_db():
-    import os
-    from supabase import create_client
-    return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
 
 @router.get("/", response_model=List[AssetResponse])
 async def list_assets(user: AuthenticatedUser = Depends(require_read_access())):
-    client = _get_db()
+    client = get_supabase_client(user.token)
     # Ensure isolation by organization_id
     res = client.table("assets").select("*").eq("organization_id", user.organization_id).execute()
     return res.data
@@ -46,7 +42,7 @@ async def get_asset(asset_id: str, user: AuthenticatedUser = Depends(require_rea
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid asset ID format")
 
-    client = _get_db()
+    client = get_supabase_client(user.token)
     # Ensure isolation by organization_id
     res = client.table("assets").select("*").eq("id", asset_id).eq("organization_id", user.organization_id).execute()
     if not res.data:
@@ -62,7 +58,7 @@ async def get_asset_telemetry(asset_id: str, user: AuthenticatedUser = Depends(r
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid asset ID format")
 
-    client = _get_db()
+    client = get_supabase_client(user.token)
     # Verify isolation
     res = client.table("assets").select("id").eq("id", asset_id).eq("organization_id", user.organization_id).execute()
     if not res.data:
@@ -96,7 +92,7 @@ async def get_fair_telemetry(asset_id: str, user: AuthenticatedUser = Depends(re
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid asset ID format")
 
-    client = _get_db()
+    client = get_supabase_client(user.token)
     # 1. Fetch Asset to check existence, tenant isolation, and creation date
     asset_res = client.table("assets").select("*").eq("id", asset_id).eq("organization_id", user.organization_id).execute()
     if not asset_res.data:

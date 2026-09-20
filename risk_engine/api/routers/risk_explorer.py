@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel
 
-from ...auth.dependencies import require_read_access
+from ...auth.dependencies import require_read_access, get_supabase_client
 from ...auth.models import AuthenticatedUser
-from ...api.routers.assets import _get_db
 
 router = APIRouter()
 
@@ -24,7 +23,7 @@ class RiskAsset(BaseModel):
 
 @router.get("/", response_model=List[RiskAsset])
 async def get_risk_explorer_data(user: AuthenticatedUser = Depends(require_read_access())):
-    client = _get_db()
+    client = get_supabase_client(user.token)
     
     # 1. Fetch assets
     assets_res = client.table("assets").select("id, name, asset_type, criticality, internet_exposed, business_service_id, environment").eq("organization_id", user.organization_id).execute()

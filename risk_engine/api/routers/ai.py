@@ -122,49 +122,61 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
     if not api_key:
         return "LLM API provider is unconfigured. The system requires NVIDIA_API_KEY environment variable. \n\nHowever, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs, preventing hallucination."
     
-    try:
-        import httpx
-        response = httpx.post(
-            f"{os.environ.get('NVIDIA_BASE_URL', 'https://integrate.api.nvidia.com/v1').rstrip('/')}/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "model": os.environ.get("NVIDIA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
-                "max_tokens": 500,
-                "temperature": 0.1,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
-            },
-            timeout=45.0
-        )
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
-    except httpx.HTTPStatusError as e:
-        status = e.response.status_code
+    import httpx
+    import time
+    
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            error_data = e.response.json().get("error", {})
-            error_code = error_data.get("code")
-        except:
-            error_code = None
+            response = httpx.post(
+                f"{os.environ.get('NVIDIA_BASE_URL', 'https://integrate.api.nvidia.com/v1').rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": os.environ.get("NVIDIA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
+                    "max_tokens": 500,
+                    "temperature": 0.1,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ]
+                },
+                timeout=45.0
+            )
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"]
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 503 or status == 502:
+                if attempt < max_retries - 1:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
             
-        if status == 401:
-            return "The AI assistant LLM provider is temporarily unavailable (Authentication Error). The verified CYBERVEST backend APIs successfully orchestrated the data."
-        elif status == 429:
-            if error_code == "insufficient_quota" or "credit_balance_exhausted" in str(e.response.text):
-                return "The AI assistant LLM provider is temporarily unavailable (Insufficient Quota). The verified CYBERVEST backend APIs successfully orchestrated the data."
-            return "The AI assistant LLM provider is temporarily unavailable (Rate Limited). The verified CYBERVEST backend APIs successfully orchestrated the data."
-        elif status == 404:
-            return "The AI assistant LLM provider is temporarily unavailable (Invalid Model). The verified CYBERVEST backend APIs successfully orchestrated the data."
-        elif status >= 500:
-            return f"The AI assistant LLM provider is temporarily unavailable (Provider Server Error {status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
-        else:
-            return f"The AI assistant LLM provider is temporarily unavailable ({status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
-    except httpx.TimeoutException:
-        return "The AI assistant LLM provider timed out. The verified CYBERVEST backend APIs successfully orchestrated the data."
-    except Exception:
-        # Do not expose raw internal exception
-        return "The AI assistant LLM provider is temporarily unavailable. However, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs."
+            try:
+                error_data = e.response.json().get("error", {})
+                error_code = error_data.get("code")
+            except:
+                error_code = None
+                
+            if status == 401:
+                return "The AI assistant LLM provider is temporarily unavailable (Authentication Error). The verified CYBERVEST backend APIs successfully orchestrated the data."
+            elif status == 429:
+                if error_code == "insufficient_quota" or "credit_balance_exhausted" in str(e.response.text):
+                    return "The AI assistant LLM provider is temporarily unavailable (Insufficient Quota). The verified CYBERVEST backend APIs successfully orchestrated the data."
+                return "The AI assistant LLM provider is temporarily unavailable (Rate Limited). The verified CYBERVEST backend APIs successfully orchestrated the data."
+            elif status == 404:
+                return "The AI assistant LLM provider is temporarily unavailable (Invalid Model). The verified CYBERVEST backend APIs successfully orchestrated the data."
+            elif status >= 500:
+                return f"The AI assistant LLM provider is temporarily unavailable (Provider Server Error {status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
+            else:
+                return f"The AI assistant LLM provider is temporarily unavailable ({status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
+        except httpx.TimeoutException:
+            if attempt < max_retries - 1:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            return "The AI assistant LLM provider timed out. The verified CYBERVEST backend APIs successfully orchestrated the data."
+        except Exception:
+            # Do not expose raw internal exception
+            return "The AI assistant LLM provider is temporarily unavailable. However, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs."
 
 @router.post("/ask", response_model=AIResponse)
 async def ask_llm_route(

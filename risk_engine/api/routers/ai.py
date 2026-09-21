@@ -118,17 +118,17 @@ async def execute_tool(query: str, user: AuthenticatedUser) -> tuple[str, Dict[s
         return "Unsupported", {}
 
 def call_llm(system_prompt: str, user_prompt: str) -> str:
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("NVIDIA_API_KEY")
     if not api_key:
-        return "LLM API provider is unconfigured. The system requires OPENAI_API_KEY environment variable. \n\nHowever, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs, preventing hallucination."
+        return "LLM API provider is unconfigured. The system requires NVIDIA_API_KEY environment variable. \n\nHowever, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs, preventing hallucination."
     
     try:
         import httpx
         response = httpx.post(
-            "https://api.openai.com/v1/chat/completions",
+            f"{os.environ.get('NVIDIA_BASE_URL', 'https://integrate.api.nvidia.com/v1').rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json={
-                "model": "gpt-4o-mini",
+                "model": os.environ.get("NVIDIA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
                 "max_tokens": 500,
                 "temperature": 0.1,
                 "messages": [

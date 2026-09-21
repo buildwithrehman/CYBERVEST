@@ -136,7 +136,7 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
                     {"role": "user", "content": user_prompt}
                 ]
             },
-            timeout=15.0
+            timeout=45.0
         )
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
@@ -157,9 +157,9 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
         elif status == 404:
             return "The AI assistant LLM provider is temporarily unavailable (Invalid Model). The verified CYBERVEST backend APIs successfully orchestrated the data."
         elif status >= 500:
-            return "The AI assistant LLM provider is temporarily unavailable (Provider Server Error). The verified CYBERVEST backend APIs successfully orchestrated the data."
+            return f"The AI assistant LLM provider is temporarily unavailable (Provider Server Error {status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
         else:
-            return "The AI assistant LLM provider is temporarily unavailable. The verified CYBERVEST backend APIs successfully orchestrated the data."
+            return f"The AI assistant LLM provider is temporarily unavailable ({status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
     except httpx.TimeoutException:
         return "The AI assistant LLM provider timed out. The verified CYBERVEST backend APIs successfully orchestrated the data."
     except Exception:

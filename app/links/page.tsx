@@ -82,9 +82,9 @@ export default function LinksPage() {
             </div>
           </a>
 
-          {/* Button 3: Video Demo */}
+          {/* Button 3: Demo Video - Google Drive */}
           <a
-            href="https://drive.google.com/file/d/1wQmPkzran9P7VBIZlgEnuug6SEYSCqhq/view?usp=sharing"
+            href="https://drive.google.com/file/d/1j5YSoGlDiLB_9rj5uPvpYWmbT3Ne5ahu/view?usp=sharing"
             target="_blank"
             rel="noopener noreferrer"
             className="group flex items-center p-4 bg-[#141B22] border border-white/10 rounded-2xl hover:bg-[#1C2631] hover:border-[#2e6951]/50 transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-[#2e6951]/10 active:scale-[0.98]"
@@ -94,10 +94,33 @@ export default function LinksPage() {
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-base font-semibold text-white mb-0.5 truncate">
-                Video Demo
+                Demo Video — Google Drive
               </h2>
               <p className="text-xs text-slate-400 line-clamp-2">
-                Watch the CyberVest demonstration video.
+                Watch the CyberVest demonstration video on Google Drive.
+              </p>
+            </div>
+            <div className="ml-3 shrink-0 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+              <ExternalLink className="w-5 h-5 text-slate-400 group-hover:text-[#4ade80]" />
+            </div>
+          </a>
+
+          {/* Button 4: Demo Video - YouTube */}
+          <a
+            href="https://youtu.be/SQFUfdKh_Zc"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center p-4 bg-[#141B22] border border-white/10 rounded-2xl hover:bg-[#1C2631] hover:border-[#2e6951]/50 transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-[#2e6951]/10 active:scale-[0.98]"
+          >
+            <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0 mr-4 group-hover:bg-[#2e6951]/20 group-hover:text-[#4ade80] transition-colors">
+              <PlaySquare className="w-6 h-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-semibold text-white mb-0.5 truncate">
+                Demo Video — YouTube
+              </h2>
+              <p className="text-xs text-slate-400 line-clamp-2">
+                Watch the CyberVest demonstration video on YouTube.
               </p>
             </div>
             <div className="ml-3 shrink-0 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all">

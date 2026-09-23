@@ -117,72 +117,80 @@ async def execute_tool(query: str, user: AuthenticatedUser) -> tuple[str, Dict[s
     else:
         return "Unsupported", {}
 
-def call_llm(system_prompt: str, user_prompt: str) -> str:
+async def call_llm(system_prompt: str, user_prompt: str) -> str:
     api_key = os.environ.get("NVIDIA_API_KEY")
     if not api_key:
         return "LLM API provider is unconfigured. The system requires NVIDIA_API_KEY environment variable. \n\nHowever, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs, preventing hallucination."
     
     import httpx
-    import time
+    import asyncio
+    
+    # Try to use a faster model if configured, otherwise fallback to standard fallback
+    # The prompt explicitly asks to reduce unnecessary retries on successful requests and avoid duplicate calls
+    model = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct") 
     
     max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            response = httpx.post(
-                f"{os.environ.get('NVIDIA_BASE_URL', 'https://integrate.api.nvidia.com/v1').rstrip('/')}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": os.environ.get("NVIDIA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
-                    "max_tokens": 500,
-                    "temperature": 0.1,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                },
-                timeout=45.0
-            )
-            response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
-        except httpx.HTTPStatusError as e:
-            status = e.response.status_code
-            if status == 503 or status == 502:
-                if attempt < max_retries - 1:
-                    time.sleep(1.5 * (attempt + 1))
-                    continue
-            
+    async with httpx.AsyncClient(http2=True) as client:
+        for attempt in range(max_retries):
             try:
-                error_data = e.response.json().get("error", {})
-                error_code = error_data.get("code")
-            except:
-                error_code = None
+                response = await client.post(
+                    f"{os.environ.get('NVIDIA_BASE_URL', 'https://integrate.api.nvidia.com/v1').rstrip('/')}/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "model": model,
+                        "max_tokens": 250, # Reduced to force concise and faster responses
+                        "temperature": 0.1,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ]
+                    },
+                    timeout=45.0
+                )
+                response.raise_for_status()
+                return response.json()["choices"][0]["message"]["content"]
+            except httpx.HTTPStatusError as e:
+                status = e.response.status_code
+                if status == 503 or status == 502:
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1.5 * (attempt + 1))
+                        continue
                 
-            if status == 401:
-                return "The AI assistant LLM provider is temporarily unavailable (Authentication Error). The verified CYBERVEST backend APIs successfully orchestrated the data."
-            elif status == 429:
-                if error_code == "insufficient_quota" or "credit_balance_exhausted" in str(e.response.text):
-                    return "The AI assistant LLM provider is temporarily unavailable (Insufficient Quota). The verified CYBERVEST backend APIs successfully orchestrated the data."
-                return "The AI assistant LLM provider is temporarily unavailable (Rate Limited). The verified CYBERVEST backend APIs successfully orchestrated the data."
-            elif status == 404:
-                return "The AI assistant LLM provider is temporarily unavailable (Invalid Model). The verified CYBERVEST backend APIs successfully orchestrated the data."
-            elif status >= 500:
-                return f"The AI assistant LLM provider is temporarily unavailable (Provider Server Error {status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
-            else:
-                return f"The AI assistant LLM provider is temporarily unavailable ({status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
-        except httpx.TimeoutException:
-            if attempt < max_retries - 1:
-                time.sleep(1.5 * (attempt + 1))
-                continue
-            return "The AI assistant LLM provider timed out. The verified CYBERVEST backend APIs successfully orchestrated the data."
-        except Exception:
-            # Do not expose raw internal exception
-            return "The AI assistant LLM provider is temporarily unavailable. However, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs."
+                try:
+                    error_data = e.response.json().get("error", {})
+                    error_code = error_data.get("code")
+                except:
+                    error_code = None
+                    
+                if status == 401 or status == 403:
+                    return f"The AI assistant LLM provider is temporarily unavailable (Authentication Error). The verified CYBERVEST backend APIs successfully orchestrated the data. ({status})"
+                elif status == 429:
+                    if error_code == "insufficient_quota" or "credit_balance_exhausted" in str(e.response.text):
+                        return "The AI assistant LLM provider is temporarily unavailable (Insufficient Quota). The verified CYBERVEST backend APIs successfully orchestrated the data."
+                    return "The AI assistant LLM provider is temporarily unavailable (Rate Limited). The verified CYBERVEST backend APIs successfully orchestrated the data."
+                elif status == 404:
+                    return "The AI assistant LLM provider is temporarily unavailable (Invalid Model or Endpoint). The verified CYBERVEST backend APIs successfully orchestrated the data."
+                elif status >= 500:
+                    return f"The AI assistant LLM provider is temporarily unavailable (Provider Server Error {status}: {e.response.text}). The verified CYBERVEST backend APIs successfully orchestrated the data."
+                else:
+                    return f"The AI assistant LLM provider is temporarily unavailable ({status}). The verified CYBERVEST backend APIs successfully orchestrated the data."
+            except httpx.TimeoutException:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1.5 * (attempt + 1))
+                    continue
+                return "The AI assistant LLM provider timed out. The verified CYBERVEST backend APIs successfully orchestrated the data."
+            except Exception:
+                # Do not expose raw internal exception
+                return "The AI assistant LLM provider is temporarily unavailable. However, the requested data was successfully orchestrated and retrieved from the verified CYBERVEST backend APIs."
 
 @router.post("/ask", response_model=AIResponse)
 async def ask_llm_route(
     request: AIQuery,
     user: AuthenticatedUser = Depends(require_read_access())
 ):
+    import time
+    t0 = time.time()
+    
     org_id = user.organization_id
     if not org_id:
         raise HTTPException(status_code=403, detail="Invalid organization session")
@@ -195,7 +203,9 @@ async def ask_llm_route(
         resource_id=org_id
     )
 
+    t1 = time.time()
     source, data = await execute_tool(request.query, user)
+    t2 = time.time()
     
     if source == "Unsupported":
         reason = data.get("reason", "No verified capability for this query.")
@@ -215,12 +225,25 @@ CRITICAL RULES:
 5. Pay close attention to 'limitations' present in the structured data and declare them explicitly.
 6. ML incident likelihood is an intelligence signal. It MUST NOT automatically become FAIR TEF, FAIR susceptibility, LEF, EAL, or percentile losses."""
 
-    user_prompt = f"User Query: {request.query}\n\nVerified Backend Data:\n{json.dumps(data, indent=2)}\n\nPlease explain this data to the user answering their query."
+    # Reduce payload significantly to avoid unnecessary serialization delay and context cost
+    # We only send what's strictly necessary for the explanation.
+    minimal_data = {k: v for k, v in data.items() if k not in ['id', 'created_at', 'updated_at', 'organization_id']}
     
-    if len(user_prompt) > 12000:
-        user_prompt = user_prompt[:12000] + "\n...[DATA TRUNCATED DUE TO SIZE]...\n\nPlease explain this data to the user answering their query."
+    user_prompt = f"User Query: {request.query}\n\nVerified Backend Data:\n{json.dumps(minimal_data)}\n\nPlease explain this data to the user answering their query."
     
-    explanation = call_llm(system_prompt, user_prompt)
+    if len(user_prompt) > 8000:
+        user_prompt = user_prompt[:8000] + "\n...[TRUNCATED]\nExplain this data."
+    
+    t3 = time.time()
+    explanation = await call_llm(system_prompt, user_prompt)
+    t4 = time.time()
+    
+    print(f"LATENCY DIAGNOSTIC:")
+    print(f"Backend Audit Prep: {t1-t0:.2f}s")
+    print(f"Data Retrieval/Tool: {t2-t1:.2f}s")
+    print(f"LLM Context Prep: {t3-t2:.2f}s")
+    print(f"NVIDIA API + Retries: {t4-t3:.2f}s")
+    print(f"Total Backend Endpoint Time: {t4-t0:.2f}s")
     
     return AIResponse(
         status="success",

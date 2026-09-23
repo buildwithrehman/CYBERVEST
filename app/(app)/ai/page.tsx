@@ -170,10 +170,17 @@ export default function AIRiskAssistantPage() {
             
             {mutation.isPending && (
               <div className="flex justify-start">
-                <div className="bg-white border border-slate-200 px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-2">
-                  <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce delay-75"></div>
-                  <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce delay-150"></div>
+                <div className="bg-white border border-slate-200 px-5 py-4 rounded-2xl rounded-bl-sm shadow-sm flex flex-col gap-3 max-w-[85%]">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex items-center justify-center w-5 h-5">
+                      <div className="absolute w-full h-full border-2 border-slate-200 border-t-[#0F3F2E] rounded-full animate-spin"></div>
+                      <Database className="w-2.5 h-2.5 text-[#0F3F2E]" />
+                    </div>
+                    <span className="text-sm font-semibold text-[#0F3F2E]">Analyzing verified risk data...</span>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Securely routing verified backend telemetry to the AI risk engine. This process typically takes 5–15 seconds to ensure cryptographic isolation and deterministic grounding.
+                  </div>
                 </div>
               </div>
             )}

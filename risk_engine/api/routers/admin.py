@@ -50,11 +50,11 @@ async def list_roles(user: AuthenticatedUser = Depends(get_current_user)):
     
     members = []
     for item in res.data:
-        profile = item.get("profiles", {}) or {}
+        profile = item.get("profiles") or {}
         members.append(OrganizationMember(
             user_id=item["user_id"],
-            email=profile.get("email", ""),
-            full_name=profile.get("full_name", ""),
+            email=profile.get("email") or "Unknown",
+            full_name=profile.get("full_name") or "Unknown",
             role=item["role"],
             created_at=item["created_at"]
         ))
